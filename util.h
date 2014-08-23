@@ -4,8 +4,6 @@
 #include <iostream>
 #include <getopt.h>
 
-#include "parse_metis.h"
-
 //Command line parsing
 class program_options
 {

@@ -23,4 +23,6 @@ public:
 	int m; //Number of edges
 };
 
+graph parse(char *file);
 graph parse_metis(char *file);
+graph parse_snap(char *file);
