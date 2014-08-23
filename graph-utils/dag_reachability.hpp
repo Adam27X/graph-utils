@@ -22,6 +22,8 @@ void find_reach(graph &g, int i, std::vector< std::set<int> > &reach, std::set<i
 			tmp.insert(w);
 			if(reach[w].empty())
 			{
+				//Leaf vertices can be called here multiple times since they're initially empty and stay empty, so we don't halt execution when that happens.
+				//Since a leaf vertex cannot be part of a cycle, it seems as though we're still guaranteed to find any cycles that may exist.
 				if((chain.find(w) != chain.end()) && ((g.R[w+1]-g.R[w]) != 0))
 				{
 					std::cout << "Cycle found!" << std::endl;

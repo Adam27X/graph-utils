@@ -19,7 +19,7 @@ program_options parse_arguments(int argc, char *argv[])
 		switch(c)
 		{
 			case 'h':
-				std::cout << "Usage: " << argv[0] << " -i <input graph file> [-v verify GPU calculation] [-p <output file> print BC scores] [-d <device ID> choose GPU (starting from 0)]" << std::endl;	
+				std::cout << "Usage: " << argv[0] << " -i <input graph file>" << std::endl;	
 			exit(0);
 
 			case 'i':
