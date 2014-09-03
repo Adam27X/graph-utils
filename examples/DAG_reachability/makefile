@@ -2,6 +2,7 @@ REACH := reach
 
 program_CXX_SRCS := $(wildcard *.cpp)
 program_CXX_SRCS += $(wildcard ../../*.cpp)
+program_CXX_SRCS += $(wildcard ../../graph-utils/*.cpp)
 program_CXX_OBJS := ${program_CXX_SRCS:.cpp=.o}
 program_INCLUDE_DIRS := . ../../
 CPPFLAGS += $(foreach includedir,$(program_INCLUDE_DIRS),-I$(includedir))

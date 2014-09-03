@@ -1,9 +1,4 @@
-#pragma once
-
-#include <iostream>
-#include <set>
-
-#include "reverse.hpp"
+#include "dag_reachability.h"
 
 //This function assumes a DAG input. A stack overflow can occur otherwise.
 void find_reach(graph &g, int i, std::vector< std::set<int> > &reach)
