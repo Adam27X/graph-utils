@@ -5,8 +5,8 @@
 
 #include "reverse.hpp"
 
-//This function keeps track of recursive calls to report a cycle in the case that one is found. If this functionality impacts performance it can be removed in favor a function that assumes a DAG input.
-void find_reach(graph &g, int i, std::vector< std::set<int> > &reach, std::set<int> &chain)
+//This function assumes a DAG input. A stack overflow can occur otherwise.
+void find_reach(graph &g, int i, std::vector< std::set<int> > &reach)
 {
 	//Base case: If a vertex has no outdegree then it cannot reach anything.
 	if((g.R[i+1]-g.R[i]) == 0)
@@ -22,30 +22,14 @@ void find_reach(graph &g, int i, std::vector< std::set<int> > &reach, std::set<i
 			tmp.insert(w);
 			if(reach[w].empty())
 			{
-				//Leaf vertices can be called here multiple times since they're initially empty and stay empty, so we don't halt execution when that happens.
-				//Since a leaf vertex cannot be part of a cycle, it seems as though we're still guaranteed to find any cycles that may exist.
-				if((chain.find(w) != chain.end()) && ((g.R[w+1]-g.R[w]) != 0))
-				{
-					std::cout << "Cycle found!" << std::endl;
-					std::cout << "Element to be inserted: " << w << std::endl;
-					std::cout << "Chain: ";
-					for(auto i=chain.begin(),e=chain.end(); i!=e; ++i)
-					{
-						std::cout << *i << " ";
-					}
-					std::cout << std::endl;
-					exit(0);
-				}
-				else
-				{
-					chain.insert(w);
-					find_reach(g,w,reach,chain);
-					tmp.insert(reach[w].begin(),reach[w].end());
-				}
+				find_reach(g,w,reach);
+				//tmp.insert(reach[w].begin(),reach[w].end());
+				std::set_union(reach[w].begin(),reach[w].end(),reach[i].begin(),reach[i].end(),std::inserter(tmp,tmp.end()));
 			}
 			else
 			{
-				tmp.insert(reach[w].begin(),reach[w].end());
+				//tmp.insert(reach[w].begin(),reach[w].end());
+				std::set_union(reach[w].begin(),reach[w].end(),reach[i].begin(),reach[i].end(),std::inserter(tmp,tmp.end()));
 			}
 		}
 		reach[i] = tmp;
@@ -73,8 +57,7 @@ std::vector< std::set<int> > get_reachability(graph &g)
 	std::vector< std::set<int> > reach(g.n);
 	for(auto i=roots.begin(),e=roots.end(); i!=e; ++i)
 	{
-		std::set<int> chain_begin(i,i+1);
-		find_reach(g,*i,reach,chain_begin);
+		find_reach(g,*i,reach);
 	}
 
 	return reach;
