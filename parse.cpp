@@ -129,12 +129,25 @@ graph parse_metis(char *file)
 		}
 
 		std::vector<std::string> splitvec;
-		boost::split(splitvec,line, boost::is_any_of(" \t"), boost::token_compress_on); //Now tokenize
-
-		//If the last element is a space or tab itself, erase it
-		if(!is_number(splitvec[splitvec.size()-1]))
+		
+		//Mimic boost::split to not have a huge dependency on boost for limited functionality
+		//boost::split(splitvec,line, boost::is_any_of(" \t"), boost::token_compress_on); //Now tokenize
+		std::string temp;
+		for(std::string::iterator i=line.begin(),e=line.end();i!=e;++i)
 		{
-			splitvec.erase(splitvec.end()-1);
+			if((*i == '\t') || (*i == ' '))
+			{
+				splitvec.push_back(temp);
+				temp.clear();
+			}
+			else
+			{
+				temp.append(i,i+1);
+			}
+		}
+		if(!temp.empty())
+		{
+			splitvec.push_back(temp);
 		}
 
 		if(firstline)
@@ -197,6 +210,7 @@ graph parse_snap(char *file)
 
 	std::string line;
 	std::set<int> vertices; //Keep track of the number of unique vertices
+	bool extra_info_warned = false;
 	while(std::getline(snap,line))
 	{
 		if(line[0] == '#')
@@ -205,9 +219,27 @@ graph parse_snap(char *file)
 		}
 
 		std::vector<std::string> splitvec;
-		boost::split(splitvec,line,boost::is_any_of(" \t"),boost::token_compress_on); //Now tokenize
 
-		bool extra_info_warned = false;
+                //Mimic boost::split to not have a huge dependency on boost for limited functionality
+                //boost::split(splitvec,line, boost::is_any_of(" \t"), boost::token_compress_on); //Now tokenize
+                std::string temp;
+                for(std::string::iterator i=line.begin(),e=line.end();i!=e;++i)
+                {
+                        if((*i == '\t') || (*i == ' '))
+                        {
+                                splitvec.push_back(temp);
+                                temp.clear();
+                        }
+                        else
+                        {
+                                temp.append(i,i+1);
+                        }
+                }
+                if(!temp.empty())
+                {
+                        splitvec.push_back(temp);
+                }
+
 		if((splitvec.size() > 2) && (!extra_info_warned))
 		{
 			std::cerr << "Warning: Ignoring extra information associated with each edge." << std::endl;

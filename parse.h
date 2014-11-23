@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include <set>
-#include <boost/algorithm/string.hpp>
+#include <vector>
 #include <fstream>
 #include <cstdlib>
 
