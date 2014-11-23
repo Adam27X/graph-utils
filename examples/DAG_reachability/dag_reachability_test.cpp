@@ -2,7 +2,6 @@
 
 #include "../../parse.h"
 #include "../../util.h"
-//#include "../../graph-utils/reverse.hpp"
 #include "../../graph-utils/dag_reachability.h"
 
 int main(int argc, char **argv)
