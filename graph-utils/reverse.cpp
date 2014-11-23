@@ -1,6 +1,4 @@
-#pragma once
-
-#include <iostream>
+#include "reverse.h"
 
 graph reverse(graph &g)
 {
