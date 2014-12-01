@@ -1,8 +1,8 @@
 #include "reverse.h"
 
-graph reverse(graph &g)
+host_graph reverse(host_graph &g)
 {
-	graph g_rev;
+	host_graph g_rev;
 	g_rev.n = g.n; //Number of vertices and edges are the same for the reverse graph
 	g_rev.m = g.m;
 

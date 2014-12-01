@@ -4,4 +4,4 @@
 #include <algorithm>
 #include "../parse.h"
 
-graph reverse(graph &g);
+host_graph reverse(host_graph &g);

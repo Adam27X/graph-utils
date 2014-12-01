@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 {
 	program_options op = parse_arguments(argc,argv);
 
-	graph g = parse(op.infile);
+	host_graph g = parse(op.infile);
 
 	std::cout << "Graph parsed." << std::endl;
 

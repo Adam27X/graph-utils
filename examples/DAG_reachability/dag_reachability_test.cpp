@@ -8,9 +8,9 @@ int main(int argc, char **argv)
 {
 	program_options op = parse_arguments(argc,argv);
 
-	graph g = parse(op.infile);
+	host_graph g = parse(op.infile);
 
-	graph g_rev = reverse(g);
+	host_graph g_rev = reverse(g);
 
 	std::vector< std::set<int> > reach = get_reachability(g);
 

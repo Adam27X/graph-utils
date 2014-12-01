@@ -7,7 +7,7 @@ bool is_number(const std::string& s)
     return !s.empty() && it == s.end();
 }
 
-void graph::print_offset_array()
+void host_graph::print_offset_array()
 {
 	std::cout << "R = [";
 	for(auto i=R.begin(),e=R.end(); i!=e; ++i)
@@ -24,7 +24,7 @@ void graph::print_offset_array()
 	std::cout << "]" << std::endl;
 }
 
-void graph::print_edge_array()
+void host_graph::print_edge_array()
 {
 	std::cout << "C = [";
 	for(auto i=C.begin(),e=C.end(); i!=e; ++i)
@@ -41,7 +41,7 @@ void graph::print_edge_array()
 	std::cout << "]" << std::endl;
 }
 
-void graph::print_from_array()
+void host_graph::print_from_array()
 {
 	std::cout << "F = [";
 	for(auto i=F.begin(),e=F.end(); i!=e; ++i)
@@ -58,7 +58,7 @@ void graph::print_from_array()
 	std::cout << "]" << std::endl;
 }
 
-void graph::print_adjacency_list()
+void host_graph::print_adjacency_list()
 {
 	std::cout << "Edge lists for each vertex: " << std::endl;
 
@@ -85,7 +85,7 @@ void graph::print_adjacency_list()
 	}
 }
 
-graph parse(char *file)
+host_graph parse(char *file)
 {
 	std::string s(file);
 
@@ -104,9 +104,9 @@ graph parse(char *file)
 	}
 }
 
-graph parse_metis(char *file)
+host_graph parse_metis(char *file)
 {
-	graph g;
+	host_graph g;
 
 	//Get n,m
 	std::ifstream metis(file,std::ifstream::in);
@@ -131,7 +131,6 @@ graph parse_metis(char *file)
 		std::vector<std::string> splitvec;
 		
 		//Mimic boost::split to not have a huge dependency on boost for limited functionality
-		//boost::split(splitvec,line, boost::is_any_of(" \t"), boost::token_compress_on); //Now tokenize
 		std::string temp;
 		for(std::string::iterator i=line.begin(),e=line.end();i!=e;++i)
 		{
@@ -195,12 +194,14 @@ graph parse_metis(char *file)
 		}
 	}
 
+	g.directed = false;
+
 	return g;
 }
 
-graph parse_snap(char *file)
+host_graph parse_snap(char *file)
 {
-	graph g;
+	host_graph g;
 
 	std::ifstream snap(file,std::ifstream::in);
 	if(!snap.good())
@@ -221,7 +222,6 @@ graph parse_snap(char *file)
 		std::vector<std::string> splitvec;
 
                 //Mimic boost::split to not have a huge dependency on boost for limited functionality
-                //boost::split(splitvec,line, boost::is_any_of(" \t"), boost::token_compress_on); //Now tokenize
                 std::string temp;
                 for(std::string::iterator i=line.begin(),e=line.end();i!=e;++i)
                 {
@@ -280,6 +280,8 @@ graph parse_snap(char *file)
 	{
 		g.R[++last_node] = g.m;
 	}
+
+	g.directed = true; //FIXME: For now, only support directed SNAP graphs
 
 	return g;
 }

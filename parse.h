@@ -7,7 +7,7 @@
 #include <fstream>
 #include <cstdlib>
 
-class graph
+class host_graph
 {
 public:
 	void print_offset_array();
@@ -21,8 +21,11 @@ public:
 	std::vector<int> F; //Array of where edges originate from
 	int n; //Number of vertices
 	int m; //Number of edges
+
+	//Graph attributes
+	bool directed;
 };
 
-graph parse(char *file);
-graph parse_metis(char *file);
-graph parse_snap(char *file);
+host_graph parse(char *file);
+host_graph parse_metis(char *file);
+host_graph parse_snap(char *file);
