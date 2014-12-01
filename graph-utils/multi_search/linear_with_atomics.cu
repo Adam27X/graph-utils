@@ -55,21 +55,19 @@ std::vector< std::vector<int> > multi_search_linear_atomics_setup(device_graph g
 
 __global__ void multi_search_linear_atomics(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end)
 {
-	__shared__ int i;
 	int j = threadIdx.x;
 	__shared__ int *Q_row;
 	__shared__ int *Q2_row;
 
 	if(j == 0)
 	{
-		i = blockIdx.x + start;
 		Q_row = (int *)((char*)Q + blockIdx.x*pitch_Q);
 		Q2_row = (int *)((char*)Q2 + blockIdx.x*pitch_Q2);
 	}
 	__syncthreads();
 
 	//Outer loop over all source vertices
-	for(i=blockIdx.x+start; i<end; i+=gridDim.x)
+	for(int i=blockIdx.x+start; i<end; i+=gridDim.x)
 	{
 		//Initialization
 		int *d_row = (int *)((char*)d + i*pitch_d);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 #ifndef checkCudaErrors
 #define checkCudaErrors(err)  __checkCudaErrors (err, __FILE__, __LINE__)
 
