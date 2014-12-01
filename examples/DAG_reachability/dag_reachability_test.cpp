@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 
 	host_graph g_rev = reverse(g);
 
-	std::vector< std::set<int> > reach = get_reachability(g);
+	std::vector< std::set<int> > reach = get_reachability_dag(g);
 
 	std::cout << "Reachability sets: " << std::endl;
 	for(int i=0; i<g.n; i++)

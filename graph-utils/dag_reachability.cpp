@@ -33,7 +33,7 @@ void find_reach(host_graph &g, int i, std::vector< std::set<int> > &reach)
 
 //Given a graph, return a vector of sets representing reachable vertices for each node
 //The graph MUST be a directed acyclic graph for this method to work properly
-std::vector< std::set<int> > get_reachability(host_graph &g)
+std::vector< std::set<int> > get_reachability_dag(host_graph &g)
 {
 	if(g.directed == false)
 	{
