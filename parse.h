@@ -7,6 +7,7 @@
 #include <fstream>
 #include <cstdlib>
 
+//TODO: Swap in thrust::host_vector for std::vector?
 class host_graph
 {
 public:
