@@ -5,6 +5,7 @@ program_CXX_SRCS += $(wildcard ../../*.cpp)
 program_CXX_OBJS := ${program_CXX_SRCS:.cpp=.o}
 program_CU_SRCS := $(wildcard *.cu)
 program_CU_SRCS += $(wildcard ../../graph-utils/multi_search/*.cu)
+program_CU_SRCS += $(wildcard ../../*.cu)
 program_CU_OBJS := ${program_CU_SRCS:.cu=.cu.o}
 
 program_INCLUDE_DIRS := . ../../ ../../graph-utils/multi_search/ /usr/local/cuda-6.0/include/

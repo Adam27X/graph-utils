@@ -16,8 +16,10 @@ std::vector< std::vector<int> > multi_search_linear_atomics_setup(device_graph g
 	//Device pointers
 	int *d_d, *Q_d, *Q2_d;
 	size_t pitch_d, pitch_Q, pitch_Q2;
+	cudaEvent_t start_event, end_event;
 
 	//Allocate algorithm-specific memory
+	start_clock(start_event,end_event);
 	checkCudaErrors(cudaMallocPitch((void**)&d_d,&pitch_d,sizeof(int)*g.n,end-start));
 	checkCudaErrors(cudaMallocPitch((void**)&Q_d,&pitch_Q,sizeof(int)*g.n,dimGrid.x));
 	checkCudaErrors(cudaMallocPitch((void**)&Q2_d,&pitch_Q2,sizeof(int)*g.n,dimGrid.x));
@@ -43,6 +45,9 @@ std::vector< std::vector<int> > multi_search_linear_atomics_setup(device_graph g
 	checkCudaErrors(cudaFree(Q2_d));
 	checkCudaErrors(cudaFree(Q_d));
 	checkCudaErrors(cudaFree(d_d));
+	float time = end_clock(start_event,end_event);
+
+	std::cout << "Time for baseline linear algorithm with atomics: " << time << " s" << std::endl;
 
 	return d_host_vector;
 
