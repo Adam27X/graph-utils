@@ -5,6 +5,7 @@
 #include "../../util.h"
 #include "../../device_graph.h"
 #include "../../graph-utils/multi_search/linear_with_atomics.cuh"
+#include "../../graph-utils/multi_search/edge_parallel.cuh"
 
 void sequential(host_graph &g_h, int source, std::vector<int> &expected)
 {
@@ -29,7 +30,7 @@ void sequential(host_graph &g_h, int source, std::vector<int> &expected)
 	}
 }
 
-bool verify_linear(host_graph &g_h, std::vector< std::vector<int> > &result)
+bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &result)
 {
 	//Obtain sequential result
 	std::vector< std::vector<int> > expected(5);
@@ -65,11 +66,17 @@ int main(int argc, char **argv)
 	end = (56 > g_h.n) ? 56 : g_h.n; //Some multiple of the number of SMs for now
 
 	std::vector< std::vector<int> > result = multi_search_linear_atomics_setup(g_d,start,end);
-
-	bool pass = verify_linear(g_h,result);
+	bool pass = verify_multi_search(g_h,result);
 	if(pass)
 	{
-		std::cout << "Test passed." << std::endl;
+		std::cout << "Linear with atomics: Test passed." << std::endl;
+	}
+
+	result = multi_search_edge_parallel_setup(g_d,start,end);
+	pass = verify_multi_search(g_h,result);
+	if(pass)
+	{
+		std::cout << "Edge parallel: Test passed." << std::endl;
 	}
 
 	return 0;
