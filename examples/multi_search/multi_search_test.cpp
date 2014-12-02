@@ -30,24 +30,24 @@ void sequential(host_graph &g_h, int source, std::vector<int> &expected)
 	}
 }
 
-bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &result)
+bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &result, int start)
 {
 	//Obtain sequential result
 	std::vector< std::vector<int> > expected(5);
-	for(int i=0; i<5; i++)
+	for(int i=start; i<start+5; i++)
 	{
-		sequential(g_h,i,expected[i]);
+		sequential(g_h,i,expected[i-start]);
 	}
 
 	bool match = true;
-	for(int j=0; j<5; j++)
+	for(int j=start; j<start+5; j++)
 	{
 		for(int i=0; i<g_h.n; i++)
 		{
-			if(expected[j][i] != result[j][i])
+			if(expected[j-start][i] != result[j-start][i])
 			{
 				match = false;
-				std::cout << "Mismatch in results for vertex " << i << ". Expected: " << expected[j][i] << ". Actual: " << result[j][i] << "." << std::endl;
+				std::cout << "Mismatch in results for vertex " << i << ". Expected: " << expected[j-start][i] << ". Actual: " << result[j-start][i] << "." << std::endl;
 			}
 		}
 	}
@@ -62,18 +62,18 @@ int main(int argc, char **argv)
 	host_graph g_h = parse(op.infile);
 	device_graph g_d(g_h);
 	int start,end;
-	start = 0;
+	start = 2;
 	end = (56 > g_h.n) ? 56 : g_h.n; //Some multiple of the number of SMs for now
 
 	std::vector< std::vector<int> > result = multi_search_linear_atomics_setup(g_d,start,end);
-	bool pass = verify_multi_search(g_h,result);
+	bool pass = verify_multi_search(g_h,result,start);
 	if(pass)
 	{
 		std::cout << "Linear with atomics: Test passed." << std::endl;
 	}
 
 	result = multi_search_edge_parallel_setup(g_d,start,end);
-	pass = verify_multi_search(g_h,result);
+	pass = verify_multi_search(g_h,result,start);
 	if(pass)
 	{
 		std::cout << "Edge parallel: Test passed." << std::endl;

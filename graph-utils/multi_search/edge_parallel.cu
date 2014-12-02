@@ -30,10 +30,10 @@ std::vector< std::vector<int> > multi_search_edge_parallel_setup(device_graph g,
 	std::vector< std::vector<int> > d_host_vector(end-start);
 	for(int i=start; i<end; i++)
 	{
-		d_host_vector[i].resize(g.n);
+		d_host_vector[i-start].resize(g.n);
 		for(int j=0; j<g.n; j++)
 		{
-			d_host_vector[i][j] = d_host_array[i*g.n + j];
+			d_host_vector[i-start][j] = d_host_array[i*g.n + j];
 		}
 	}
 	delete[] d_host_array;
