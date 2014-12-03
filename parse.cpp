@@ -152,7 +152,7 @@ host_graph parse_metis(char *file)
 		if(firstline)
 		{
 			g.n = stoi(splitvec[0]);
-			g.m = stoi(splitvec[1]);
+			g.m = 2*stoi(splitvec[1]);
 			if(splitvec.size() > 3)
 			{
 				std::cerr << "Error: Weighted graphs are not yet supported." << std::endl;
@@ -165,8 +165,8 @@ host_graph parse_metis(char *file)
 			}
 			firstline = false;
 			g.R.resize(g.n+1);
-			g.C.resize(2*g.m);
-			g.F.resize(2*g.m);
+			g.C.resize(g.m);
+			g.F.resize(g.m);
 			g.R[0] = 0;
 			current_node++;
 		}

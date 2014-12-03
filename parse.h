@@ -21,7 +21,7 @@ public:
 	std::vector<int> R; //Array of offsets
 	std::vector<int> F; //Array of where edges originate from
 	int n; //Number of vertices
-	int m; //Number of edges
+	int m; //Number of directed edges. For undirected graphs we treat each undirected edge as two directed edges.
 
 	//Graph attributes
 	bool directed;

@@ -86,7 +86,7 @@ __global__ void multi_search_edge_parallel(const int *F, const int *C, const int
 				current_depth++;
 			}
 			__syncthreads();
-			for(int k=threadIdx.x; k<2*m; k+=blockDim.x) //m undirected edges = 2m directed edges. Might want to change this nomenclature.
+			for(int k=threadIdx.x; k<m; k+=blockDim.x) //m undirected edges = 2m directed edges. Might want to change this nomenclature.
 			{
 				int v = F[k];
 				if(d_row[v] == current_depth)
