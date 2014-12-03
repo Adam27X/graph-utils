@@ -51,7 +51,6 @@ bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &resul
 				match = false;
 				wrong_source = j;
 				break;
-				//std::cout << "Mismatch in results for vertex " << i << " for source " << j-start << ". Expected: " << expected[j-start][i] << ". Actual: " << result[j-start][i] << "." << std::endl;
 			}
 		}
 		if(match == false)
@@ -102,7 +101,7 @@ int main(int argc, char **argv)
 	std::cout << "Number of edges: " << g_h.m << std::endl;
 	device_graph g_d(g_h);
 	int start,end;
-	start = 0; //FIXME: The algorithms appear to execute correctly, but we incorrectly report an error when start != 0.
+	start = 2; 
 	end = (1024 > g_h.n) ? g_h.n : 1024; //Some multiple of the number of SMs for now
 
 	std::vector< std::vector<int> > result = multi_search_linear_atomics_setup(g_d,start,end);

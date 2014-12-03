@@ -35,7 +35,7 @@ std::vector< std::vector<int> > multi_search_linear_opt_setup(device_graph &g, i
 		d_host_vector[i-start].resize(g.n);
 		for(int j=0; j<g.n; j++)
 		{
-			d_host_vector[i-start][j] = d_host_array[i*g.n + j];
+			d_host_vector[i-start][j] = d_host_array[(i-start)*g.n + j];
 		}
 	}
 	delete[] d_host_array;
