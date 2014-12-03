@@ -6,6 +6,8 @@ program_CXX_OBJS := ${program_CXX_SRCS:.cpp=.o}
 program_CU_SRCS := $(wildcard *.cu)
 program_CU_SRCS += $(wildcard ../../graph-utils/multi_search/*.cu)
 program_CU_SRCS += $(wildcard ../../*.cu)
+program_CU_HEADERS := $(wildcard ../../graph-utils/multi_search/*.cuh)
+program_CU_HEADERS += $(wildcard ../../*.cuh)
 program_CU_OBJS := ${program_CU_SRCS:.cu=.cu.o}
 
 program_INCLUDE_DIRS := . ../../ ../../graph-utils/multi_search/ /usr/local/cuda-6.0/include/
@@ -22,6 +24,7 @@ NVFLAGS += $(GEN_SM35)
 all: $(MULTI_SEARCH)
 
 debug: CXXFLAGS = -g -O0 -std=c++0x -Wall -pedantic -DDEBUG $(EXTRA_FLAGS)
+debug: NVFLAGS = -O0 $(GEN_SM35) -g -G
 debug: $(MULTI_SEARCH)
 
 $(MULTI_SEARCH): $(program_CXX_OBJS) $(program_CU_SRCS) $(program_HEADERS) $(program_CU_HEADERS)

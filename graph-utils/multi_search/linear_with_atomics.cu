@@ -1,7 +1,6 @@
 #include "linear_with_atomics.cuh"
-#include "util_device.cuh"
 
-std::vector< std::vector<int> > multi_search_linear_atomics_setup(device_graph g, int start, int end)
+std::vector< std::vector<int> > multi_search_linear_atomics_setup(device_graph &g, int start, int end)
 {
 	//For now, use "standard" grid/block sizes. These can be tuned later on.
 	dim3 dimGrid, dimBlock;
@@ -70,7 +69,7 @@ __global__ void multi_search_linear_atomics(const int *R, const int *C, const in
 	for(int i=blockIdx.x+start; i<end; i+=gridDim.x)
 	{
 		//Initialization
-		int *d_row = (int *)((char*)d + i*pitch_d);
+		int *d_row = (int *)((char*)d + (i-start)*pitch_d);
 		for(int k=threadIdx.x; k<n; k+=blockDim.x)
 		{
 			if(k == i) //If k is the source vertex
