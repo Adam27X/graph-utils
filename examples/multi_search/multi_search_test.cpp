@@ -32,30 +32,52 @@ void sequential(host_graph &g_h, int source, std::vector<int> &expected)
 	}
 }
 
-bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &result, int start)
+bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &result, int start, int end)
 {
 	//Obtain sequential result
-	std::vector< std::vector<int> > expected(5);
-	for(int i=start; i<start+5; i++)
+	size_t sources_to_store = (g_h.n < 14) ? g_h.n - start : 14;
+	std::vector< std::vector<int> > expected(sources_to_store);
+	std::vector<int> sources(sources_to_store);
+	if(g_h.n < 14)
 	{
-		sequential(g_h,i,expected[i-start]);
+		for(unsigned i=0; i<sources_to_store; i++)
+		{
+			sources[i] = start+i;
+		}	
+	}
+	else
+	{
+		int earliest_source_val = end - 14;
+		int location_of_earliest_source = (end-start) % 14;
+		for(unsigned i=0; i<sources_to_store; i++)
+		{
+			int index = (location_of_earliest_source+i)%14;
+			sources[index] = earliest_source_val+i;
+		}	
+	}
+
+	for(unsigned i=0; i<sources_to_store; i++)
+	{
+		sequential(g_h,sources[i],expected[i]);
 	}
 
 	bool match = true;
 	int wrong_source;
 	int wrong_dest;
-	for(int j=start; j<start+5; j++)
+
+	for(unsigned j=0; j<sources_to_store; j++)
 	{
 		for(int i=0; i<g_h.n; i++)
 		{
-			if(expected[j-start][i] != result[j-start][i])
+			if(expected[j][i] != result[j][i])
 			{
 				match = false;
-				wrong_source = j;
+				wrong_source = sources[j]; 
 				wrong_dest = i;
+				std::cout << "j = " << j << std::endl;
 				std::cout << "Mismatch for source " << wrong_source << " and dest " << wrong_dest << std::endl;
-				std::cout << "Expected distance: " << expected[j-start][i] << std::endl;
-				std::cout << "Actual distance: " << result[j-start][i] << std::endl;
+				std::cout << "Expected distance: " << expected[j][i] << std::endl;
+				std::cout << "Actual distance: " << result[j][i] << std::endl;
 				break;
 			}
 		}
@@ -121,32 +143,32 @@ int main(int argc, char **argv)
 	std::cout << "Number of (directed) edges: " << g_h.m << std::endl;
 	device_graph g_d(g_h);
 	int start,end;
-	start = 2; //TODO: Use start and end to determine which vertices will be BFS source, but store/verify results for a small subset rather than all of them
+	start = 2; 
 	end = (1024 > g_h.n) ? g_h.n : 1024; //Some multiple of the number of SMs for now
 
 	std::vector< std::vector<int> > result = multi_search_linear_atomics_setup(g_d,start,end);
-	bool pass = verify_multi_search(g_h,result,start);
+	bool pass = verify_multi_search(g_h,result,start,end);
 	if(pass)
 	{
 		std::cout << "Linear with atomics: Test passed." << std::endl;
 	}
 
 	result = multi_search_edge_parallel_setup(g_d,start,end);
-	pass = verify_multi_search(g_h,result,start);
+	pass = verify_multi_search(g_h,result,start,end);
 	if(pass)
 	{
 		std::cout << "Edge parallel: Test passed." << std::endl;
 	}
 
 	result = multi_search_warp_based_setup(g_d,start,end);
-	pass = verify_multi_search(g_h,result,start);
+	pass = verify_multi_search(g_h,result,start,end);
 	if(pass)
 	{
 		std::cout << "Warp based: Test passed." << std::endl;
 	}
 
 	result = multi_search_scan_based_setup(g_d,start,end);
-	pass = verify_multi_search(g_h,result,start);
+	pass = verify_multi_search(g_h,result,start,end);
 	if(pass)
 	{
 		std::cout << "Scan based: Test passed." << std::endl;

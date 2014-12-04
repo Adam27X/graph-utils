@@ -17,23 +17,34 @@ std::vector< std::vector<int> > multi_search_edge_parallel_setup(device_graph &g
 	size_t pitch_d;
 	cudaEvent_t start_event, end_event;
 
+	//Number of sources to store
+	size_t sources_to_store;
+	if((end-start) > 14)
+	{
+		sources_to_store = end-start;
+	}
+	else
+	{
+		sources_to_store = 14;
+	}	
+
 	//Allocate algorithm-specific memory
 	start_clock(start_event,end_event);
-	checkCudaErrors(cudaMallocPitch((void**)&d_d,&pitch_d,sizeof(int)*g.n,end-start));
+	checkCudaErrors(cudaMallocPitch((void**)&d_d,&pitch_d,sizeof(int)*g.n,sources_to_store));
 
 	multi_search_edge_parallel<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.F.data()),thrust::raw_pointer_cast(g.C.data()),g.n,g.m,d_d,pitch_d,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
 	//Transfer result to host. Use CUDA library calls to copy into a C-style array and then move that to a vector for convenience.
-	int *d_host_array = new int[g.n*(end-start)];
-	checkCudaErrors(cudaMemcpy2D(d_host_array,sizeof(int)*g.n,d_d,pitch_d,sizeof(int)*g.n,(end-start),cudaMemcpyDeviceToHost));
-	std::vector< std::vector<int> > d_host_vector(end-start);
-	for(int i=start; i<end; i++)
+	int *d_host_array = new int[g.n*sources_to_store];
+	checkCudaErrors(cudaMemcpy2D(d_host_array,sizeof(int)*g.n,d_d,pitch_d,sizeof(int)*g.n,sources_to_store,cudaMemcpyDeviceToHost));
+	std::vector< std::vector<int> > d_host_vector(sources_to_store);
+	for(int i=0; i<sources_to_store; i++)
 	{
-		d_host_vector[i-start].resize(g.n);
+		d_host_vector[i].resize(g.n);
 		for(int j=0; j<g.n; j++)
 		{
-			d_host_vector[i-start][j] = d_host_array[(i-start)*g.n + j];
+			d_host_vector[i][j] = d_host_array[i*g.n + j];
 		}
 	}
 	delete[] d_host_array;
@@ -54,7 +65,7 @@ __global__ void multi_search_edge_parallel(const int *F, const int *C, const int
 	for(int i=blockIdx.x+start; i<end; i+=gridDim.x)
 	{
 		//Initialization
-		int *d_row = (int *)((char *)d + (i-start)*pitch_d); 
+		int *d_row = (int *)((char *)d + blockIdx.x*pitch_d); 
 		for(int k=threadIdx.x; k<n; k+=blockDim.x)
 		{
 			if(k == i)
