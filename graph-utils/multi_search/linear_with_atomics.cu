@@ -103,6 +103,7 @@ __global__ void multi_search_linear_atomics(const int *R, const int *C, const in
 			Q_row[0] = i;
 			Q_len = 1;
 			Q2_len = 0;
+			done = false;
 		}
 		__syncthreads();
 
@@ -142,7 +143,7 @@ __global__ void multi_search_linear_atomics(const int *R, const int *C, const in
 
 		while(!done)
 		{
-			for(int k=threadIdx.x; k<Q_len; k+= blockDim.x)
+			for(int k=threadIdx.x; k<Q_len; k+=blockDim.x)
 			{
 				int v = Q_row[k];
 				for(int r=R[v]; r<R[v+1]; r++)
