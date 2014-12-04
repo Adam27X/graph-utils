@@ -2,6 +2,18 @@
 
 std::vector< std::vector<int> > multi_search_linear_atomics_setup(device_graph &g, int start, int end)
 {
+	//Device info TODO: Throw this in a utility function so it's more flexible and can be called at will
+	std::cout << std::endl;
+	int dev;
+	cudaDeviceProp prop;
+	checkCudaErrors(cudaGetDevice(&dev));
+	checkCudaErrors(cudaGetDeviceProperties(&prop,dev));
+	std::cout << "Chosen Device: " << prop.name << std::endl;
+	std::cout << "Compute Capability: " << prop.major << "." << prop.minor << std::endl;
+	std::cout << "Number of SMs: " << prop.multiProcessorCount << std::endl;
+	std::cout << "Size of Global Memory: " << prop.totalGlobalMem/(float)(1024*1024*1024) << " GB" << std::endl;
+	std::cout << std::endl;
+
 	//For now, use "standard" grid/block sizes. These can be tuned later on.
 	dim3 dimGrid, dimBlock;
 	dimGrid.x = 14;
