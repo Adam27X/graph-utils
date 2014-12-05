@@ -19,7 +19,7 @@ std::vector< std::vector<int> > multi_search_edge_parallel_setup(device_graph &g
 
 	//Number of sources to store
 	size_t sources_to_store;
-	if((end-start) > 14)
+	if((end-start) < 14)
 	{
 		sources_to_store = end-start;
 	}
