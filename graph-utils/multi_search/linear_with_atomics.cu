@@ -2,7 +2,7 @@
 #include "common.cuh"
 
 //TODO: Device graph can be passed as const here?
-std::vector< std::vector<int> > multi_search_linear_atomics_setup(device_graph &g, int start, int end)
+std::vector< std::vector<int> > multi_search_linear_atomics_setup(const device_graph &g, int start, int end)
 {
 	dim3 dimGrid, dimBlock;
 	//Returns number of source vertices to store for verification purposes

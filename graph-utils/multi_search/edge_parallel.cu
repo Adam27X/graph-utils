@@ -1,7 +1,7 @@
 #include "edge_parallel.cuh"
 #include "common.cuh"
 
-std::vector< std::vector<int> > multi_search_edge_parallel_setup(device_graph &g, int start, int end)
+std::vector< std::vector<int> > multi_search_edge_parallel_setup(const device_graph &g, int start, int end)
 {
 	//For now, use "standard" grid/block sizes. These can be tuned later on.
 	dim3 dimGrid, dimBlock;
