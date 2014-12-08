@@ -35,10 +35,11 @@ void sequential(host_graph &g_h, int source, std::vector<int> &expected)
 bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &result, int start, int end)
 {
 	//Obtain sequential result
-	size_t sources_to_store = (g_h.n < 14) ? g_h.n - start : 14;
+	const int number_of_rows = result.size(); //Number of SMs on the GPU used for computation
+	size_t sources_to_store = (g_h.n < number_of_rows) ? g_h.n - start : number_of_rows;
 	std::vector< std::vector<int> > expected(sources_to_store);
 	std::vector<int> sources(sources_to_store);
-	if(g_h.n < 14)
+	if(g_h.n < number_of_rows)
 	{
 		for(unsigned i=0; i<sources_to_store; i++)
 		{
@@ -47,11 +48,11 @@ bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &resul
 	}
 	else
 	{
-		int earliest_source_val = end - 14;
-		int location_of_earliest_source = (end-start) % 14;
+		int earliest_source_val = end - number_of_rows;
+		int location_of_earliest_source = (end-start) % number_of_rows;
 		for(unsigned i=0; i<sources_to_store; i++)
 		{
-			int index = (location_of_earliest_source+i)%14;
+			int index = (location_of_earliest_source+i)%number_of_rows;
 			sources[index] = earliest_source_val+i;
 		}	
 	}

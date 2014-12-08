@@ -1,32 +1,17 @@
 #include "warp_based.cuh"
+#include "common.cuh"
 
 std::vector< std::vector<int> > multi_search_warp_based_setup(device_graph &g, int start, int end)
 {
 	//For now, use "standard" grid/block sizes. These can be tuned later on.
 	dim3 dimGrid, dimBlock;
-	dimGrid.x = 14;
-	dimGrid.y = 1;
-	dimGrid.z = 1;
-
-	dimBlock.x = 1024;
-	dimBlock.y = 1;
-	dimBlock.z = 1;
+        //Returns number of source vertices to store for verification purposes
+        size_t sources_to_store = configure_grid(dimGrid,dimBlock,start,end);
 
 	//Device pointers
 	int *d_d, *Q_d, *Q2_d;
 	size_t pitch_d, pitch_Q, pitch_Q2;
 	cudaEvent_t start_event, end_event;
-
-        //Number of BFS results to store for verification
-        size_t sources_to_store;
-        if((end-start) < 14)
-        {
-                sources_to_store = end-start;
-        }
-        else
-        {
-                sources_to_store = 14;
-        }
 
 	//Allocate algorithm-specific memory
 	start_clock(start_event,end_event);
@@ -37,19 +22,8 @@ std::vector< std::vector<int> > multi_search_warp_based_setup(device_graph &g, i
 	multi_search_warp_based<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,pitch_d,Q_d,pitch_Q,Q2_d,pitch_Q2,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
-	//Transfer result to host. Use CUDA library calls to copy into a C-style array and then move that to a vector for convenience.
-	int *d_host_array = new int[g.n*sources_to_store];
-	checkCudaErrors(cudaMemcpy2D(d_host_array,sizeof(int)*g.n,d_d,pitch_d,sizeof(int)*g.n,sources_to_store,cudaMemcpyDeviceToHost));
-	std::vector< std::vector<int> > d_host_vector(sources_to_store);
-	for(int i=0; i<sources_to_store; i++)
-	{
-		d_host_vector[i].resize(g.n);
-		for(int j=0; j<g.n; j++)
-		{
-			d_host_vector[i][j] = d_host_array[i*g.n + j];
-		}
-	}
-	delete[] d_host_array;
+        std::vector< std::vector<int> > d_host_vector;
+        transfer_result(g,d_d,pitch_d,sources_to_store,d_host_vector);
 
 	//Free algorithm-specific memory
 	checkCudaErrors(cudaFree(Q2_d));
