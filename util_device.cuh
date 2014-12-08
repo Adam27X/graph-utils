@@ -1,6 +1,8 @@
 #pragma once
 
 #include <iostream>
+#include <stdexcept>
+#include "util.h"
 
 #ifndef checkCudaErrors
 #define checkCudaErrors(err)  __checkCudaErrors (err, __FILE__, __LINE__)
@@ -19,3 +21,5 @@ inline void __checkCudaErrors(cudaError_t err, const char *file, const int line)
 //Timing routines
 void start_clock(cudaEvent_t &start, cudaEvent_t &end);
 float end_clock(cudaEvent_t &start, cudaEvent_t &end);
+
+void choose_device(const program_options &op);

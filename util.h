@@ -8,8 +8,9 @@
 class program_options
 {
 public:
-	program_options() : infile(NULL) {}
-
+	program_options() : device(-1), infile(NULL) {}
+	
+	int device;
 	char *infile;
 };
 

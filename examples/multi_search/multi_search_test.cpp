@@ -64,7 +64,7 @@ bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &resul
 	bool match = true;
 	int wrong_source;
 	int wrong_dest;
-	int wrong_source_index;
+	//int wrong_source_index;
 
 	for(unsigned j=0; j<sources_to_store; j++)
 	{
@@ -74,7 +74,7 @@ bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &resul
 			{
 				match = false;
 				wrong_source = sources[j]; 
-				wrong_source_index = j;
+				//wrong_source_index = j;
 				wrong_dest = i;
 				std::cout << "Mismatch for source " << wrong_source << " and dest " << wrong_dest << std::endl;
 				std::cout << "Expected distance: " << expected[j][i] << std::endl;
@@ -140,11 +140,15 @@ int main(int argc, char **argv)
 	
 	host_graph g_h = parse(op.infile);
 	std::cout << "Number of vertices: " << g_h.n << std::endl;
-	std::cout << "Number of (directed) edges: " << g_h.m << std::endl;
+	std::cout << "Number of (directed) edges: " << g_h.m << std::endl << std::endl;
+
+	choose_device(op);
+	std::cout << std::endl;
+
 	device_graph g_d(g_h);
 	int start,end;
-	start = 2; 
-	end = (1024 > g_h.n) ? g_h.n : 1024; //Some multiple of the number of SMs for now
+	start = 0; 
+	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 
 	std::vector< std::vector<int> > result = multi_search_linear_atomics_setup(g_d,start,end);
 	bool pass = verify_multi_search(g_h,result,start,end);
