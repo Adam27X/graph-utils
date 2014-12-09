@@ -1,7 +1,7 @@
-#include "warp_based.cuh"
+#include "CTA_warp.cuh"
 #include "common.cuh"
 
-std::vector< std::vector<int> > multi_search_warp_based_setup(const device_graph &g, int start, int end)
+std::vector< std::vector<int> > multi_search_CTA_warp_based_setup(const device_graph &g, int start, int end)
 {
 	//For now, use "standard" grid/block sizes. These can be tuned later on.
 	dim3 dimGrid, dimBlock;
@@ -20,9 +20,9 @@ std::vector< std::vector<int> > multi_search_warp_based_setup(const device_graph
 	checkCudaErrors(cudaMallocPitch((void**)&Q2_d,&pitch_Q2,sizeof(int)*g.n,dimGrid.x));
 
         size_t GPU_memory_requirement = sizeof(int)*g.n*sources_to_store + 2*sizeof(int)*g.n*dimGrid.x + sizeof(int)*(g.n+1) + sizeof(int)*(g.m);
-        std::cout << "Warp based memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
+        std::cout << "CTA+warp memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
 
-	multi_search_warp_based<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,pitch_d,Q_d,pitch_Q,Q2_d,pitch_Q2,start,end);
+	multi_search_CTA_warp_based<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,pitch_d,Q_d,pitch_Q,Q2_d,pitch_Q2,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
         std::vector< std::vector<int> > d_host_vector;
@@ -34,13 +34,14 @@ std::vector< std::vector<int> > multi_search_warp_based_setup(const device_graph
 	checkCudaErrors(cudaFree(d_d));
 	float time = end_clock(start_event,end_event);
 
-	std::cout << "Time for warp-based neighbor gathering: " << std::setprecision(9) << time << " s" << std::endl;
+	std::cout << "Time for CTA+warp neighbor gathering: " << std::setprecision(9) << time << " s" << std::endl;
 
 	return d_host_vector;
 }
 
-__global__ void multi_search_warp_based(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end)
+__global__ void multi_search_CTA_warp_based(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end)
 {
+	const int degree_threshold = 2048;
 	int j = threadIdx.x;
 	int warp_id = threadIdx.x/32;
 	int lane_id = threadIdx.x & 0x1f;
@@ -83,8 +84,8 @@ __global__ void multi_search_warp_based(const int *R, const int *C, const int n,
 
 		while(1)
 		{
-			//Listing 9: Warp-based, strip-mined neighbor gathering
 			volatile __shared__ int comm[32][4]; //32 is the number of warps
+			__shared__ int CTA_comm[4];
 			int v, r, r_end;	
 			int k = threadIdx.x;
 
@@ -93,6 +94,110 @@ __global__ void multi_search_warp_based(const int *R, const int *C, const int n,
 				v = Q_row[k];
 				r = R[v];
 				r_end = R[v+1];
+			}
+			else
+			{
+				v = -1;
+				r = 0;
+				r_end = 0;
+			}
+
+			//If a thread's adjlist is really large, have the entire CTA process it. 
+			while(1)
+			{
+				__shared__ bool high_degree;
+				if(threadIdx.x == 0)
+				{
+					high_degree = false;
+				}
+				__syncthreads();
+				for(int m=threadIdx.x; m<Q_len; m+=blockDim.x)
+				{
+					if(r_end-r > degree_threshold)
+					{
+						high_degree = true;
+						CTA_comm[0] = threadIdx.x;
+					}
+				}
+				__syncthreads();
+				while(high_degree) 
+				{
+					if(CTA_comm[0] == threadIdx.x)
+					{
+						CTA_comm[1] = r;
+						CTA_comm[2] = r_end;
+						CTA_comm[3] = v;
+						r = 0; //Same thread cannot win twice
+						r_end = 0; 
+					}
+					__syncthreads();
+					
+					int r_gather = CTA_comm[1] + threadIdx.x;
+					int r_gather_end = CTA_comm[2];
+					int v_new = CTA_comm[3];
+					while(r_gather < r_gather_end)
+					{
+						volatile int w = C[r_gather];
+						//Assuming no duplicate/self-edges in the graph, no atomics needed
+						if(d_row[w] == INT_MAX)
+						{
+							d_row[w] = d_row[v_new]+1;
+							int t = atomicAdd(&Q2_len,1);
+							Q2_row[t] = w;
+						}
+						r_gather += blockDim.x;
+					}
+					__syncthreads();
+					
+					//See if another loop iteration is needed. This would be cleaner in a device function
+					if(threadIdx.x == 0)
+					{
+						high_degree = false;
+					}
+					__syncthreads();
+					for(int m=threadIdx.x; m<Q_len; m+=blockDim.x)
+					{
+						if(r_end-r > degree_threshold)
+						{
+							high_degree = true;
+							CTA_comm[0] = threadIdx.x;
+						}
+					}
+					__syncthreads();
+				}
+				k+=blockDim.x;
+				if(k < Q_len)
+				{
+					v = Q_row[k];
+					r = R[v];
+					r_end = R[v+1];
+				}
+				else
+				{
+					v = -1;
+					r = 0;
+					r_end = 0;
+				}
+
+				if((k-threadIdx.x) >= Q_len) //If thread 0 doesn't have work, the entire block is done
+				{
+					break;
+				}
+			}
+
+			//Next, use the warp-based approach
+			k = threadIdx.x; //Go back to the beginning of the queue
+
+			if(k < Q_len)
+			{	
+				v = Q_row[k];
+				r = R[v];
+				r_end = R[v+1];
+				if(r_end-r > degree_threshold) //These were already taken care of by the entire CTA
+				{
+					r = 0;
+					r_end = 0;
+				}
 			}
 			else
 			{
@@ -153,7 +258,6 @@ __global__ void multi_search_warp_based(const int *R, const int *C, const int n,
 					r_end = 0;
 				}
 
-				//if((lane_id == 0) && (k >= Q_len)) //The entire warp is done
 				if((k-threadIdx.x) >= Q_len) //If thread 0 doesn't have work, the entire warp is done
 				{
 					break;

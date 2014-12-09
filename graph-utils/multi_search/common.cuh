@@ -2,6 +2,7 @@
 
 #include "device_graph.h"
 #include "util_device.cuh"
+#include <iomanip>
 
 //For now, use <<<# of SMs,max threads per block>>>
 //Can autotune this later

@@ -29,7 +29,7 @@ std::vector< std::vector<int> > multi_search_edge_parallel_setup(const device_gr
 	checkCudaErrors(cudaFree(d_d));
 	float time = end_clock(start_event,end_event);
 
-	std::cout << "Time for baseline edge-parallel algorithm: " << time << " s" << std::endl;
+	std::cout << "Time for baseline edge-parallel algorithm: " << std::setprecision(9) << time << " s" << std::endl;
 
 	return d_host_vector;
 }

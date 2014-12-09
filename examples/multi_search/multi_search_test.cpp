@@ -8,6 +8,7 @@
 #include "../../graph-utils/multi_search/edge_parallel.cuh"
 #include "../../graph-utils/multi_search/warp_based.cuh"
 #include "../../graph-utils/multi_search/scan_based.cuh"
+#include "../../graph-utils/multi_search/CTA_warp.cuh"
 
 void sequential(host_graph &g_h, int source, std::vector<int> &expected)
 {
@@ -178,6 +179,13 @@ int main(int argc, char **argv)
 	{
 		std::cout << "Scan based: Test passed." << std::endl;
 	}
+	
+	/*result = multi_search_CTA_warp_based_setup(g_d,start,end);
+	pass = verify_multi_search(g_h,result,start,end);
+	if(pass)
+	{
+		std::cout << "CTA+warp: Test passed." << std::endl;
+	}*/
 
 	return 0;
 }

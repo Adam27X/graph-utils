@@ -33,7 +33,7 @@ std::vector< std::vector<int> > multi_search_linear_atomics_setup(const device_g
 	checkCudaErrors(cudaFree(d_d));
 	float time = end_clock(start_event,end_event);
 
-	std::cout << "Time for baseline linear algorithm with atomics: " << time << " s" << std::endl;
+	std::cout << "Time for baseline linear algorithm with atomics: " << std::setprecision(9) << time << " s" << std::endl;
 
 	return d_host_vector;
 
