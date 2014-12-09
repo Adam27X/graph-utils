@@ -20,6 +20,9 @@ std::vector< std::vector<int> > multi_search_scan_based_setup(const device_graph
 	checkCudaErrors(cudaMallocPitch((void**)&Q_d,&pitch_Q,sizeof(int)*g.n,dimGrid.x));
 	checkCudaErrors(cudaMallocPitch((void**)&Q2_d,&pitch_Q2,sizeof(int)*g.n,dimGrid.x));
 
+        size_t GPU_memory_requirement = sizeof(int)*g.n*sources_to_store + 2*sizeof(int)*g.n*dimGrid.x + sizeof(int)*(g.n+1) + sizeof(int)*(g.m);
+        std::cout << "Linear with atomics memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
+
 	multi_search_scan_based<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,pitch_d,Q_d,pitch_Q,Q2_d,pitch_Q2,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 

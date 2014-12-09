@@ -16,6 +16,8 @@ std::vector< std::vector<int> > multi_search_edge_parallel_setup(const device_gr
 	//Allocate algorithm-specific memory
 	start_clock(start_event,end_event);
 	checkCudaErrors(cudaMallocPitch((void**)&d_d,&pitch_d,sizeof(int)*g.n,sources_to_store));
+	size_t GPU_memory_requirement = sizeof(int)*g.n*sources_to_store + 2*sizeof(int)*(g.m);
+	std::cout << "Edge parallel memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
 
 	multi_search_edge_parallel<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.F.data()),thrust::raw_pointer_cast(g.C.data()),g.n,g.m,d_d,pitch_d,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
