@@ -142,7 +142,16 @@ int main(int argc, char **argv)
 	
 	host_graph g_h = parse(op.infile);
 	std::cout << "Number of vertices: " << g_h.n << std::endl;
-	std::cout << "Number of (directed) edges: " << g_h.m << std::endl << std::endl;
+	std::cout << "Number of (directed) edges: " << g_h.m << std::endl;
+	int maxdegree = 0;
+	for(int i=0; i<g_h.n; i++)
+	{
+		if(g_h.R[i+1]-g_h.R[i] > maxdegree)
+		{
+			maxdegree = g_h.R[i+1]-g_h.R[i];
+		}
+	}
+	std::cout << "Maximum outdegree: " << maxdegree << std::endl << std::endl;
 
 	choose_device(op);
 	std::cout << std::endl;
@@ -152,7 +161,7 @@ int main(int argc, char **argv)
 	start = 0; 
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 
-	std::vector< std::vector<int> > result = multi_search_linear_atomics_setup(g_d,start,end);
+	/*std::vector< std::vector<int> > result = multi_search_linear_atomics_setup(g_d,start,end);
 	bool pass = verify_multi_search(g_h,result,start,end);
 	if(pass)
 	{
@@ -164,10 +173,10 @@ int main(int argc, char **argv)
 	if(pass)
 	{
 		std::cout << "Edge parallel: Test passed." << std::endl;
-	}
+	}*/
 
-	result = multi_search_warp_based_setup(g_d,start,end);
-	pass = verify_multi_search(g_h,result,start,end);
+	std::vector< std::vector<int> > result = multi_search_warp_based_setup(g_d,start,end);
+	bool pass = verify_multi_search(g_h,result,start,end);
 	if(pass)
 	{
 		std::cout << "Warp based: Test passed." << std::endl;
