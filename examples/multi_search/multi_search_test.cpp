@@ -1,5 +1,6 @@
 #include <iostream>
 #include <queue>
+#include <bitset>
 
 #include "../../parse.h"
 #include "../../util.h"
@@ -161,34 +162,55 @@ int main(int argc, char **argv)
 	start = 0; 
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 
-	/*std::vector< std::vector<int> > result = multi_search_linear_atomics_setup(g_d,start,end);
-	bool pass = verify_multi_search(g_h,result,start,end);
-	if(pass)
+	unsigned algorithm_choice;
+	std::cout << "Choose which algorithms to run." << std::endl;
+	std::cout << "Add 1 for linear with atomics, 2 for edge_parallel, 4 for warp-based, and 8 for scan-based." << std::endl;
+	std::cin >> algorithm_choice;
+	std::bitset<8> alg(algorithm_choice);
+
+	std::vector< std::vector<int> > result;
+	bool pass;
+
+	if(alg[0])
 	{
-		std::cout << "Linear with atomics: Test passed." << std::endl;
+		result = multi_search_linear_atomics_setup(g_d,start,end);
+		pass = verify_multi_search(g_h,result,start,end);
+		if(pass)
+		{
+			std::cout << "Linear with atomics: Test passed." << std::endl;
+		}
 	}
 
-	result = multi_search_edge_parallel_setup(g_d,start,end);
-	pass = verify_multi_search(g_h,result,start,end);
-	if(pass)
+	if(alg[1])
 	{
-		std::cout << "Edge parallel: Test passed." << std::endl;
-	}*/
-
-	std::vector< std::vector<int> > result = multi_search_warp_based_setup(g_d,start,end);
-	bool pass = verify_multi_search(g_h,result,start,end);
-	if(pass)
-	{
-		std::cout << "Warp based: Test passed." << std::endl;
+		result = multi_search_edge_parallel_setup(g_d,start,end);
+		pass = verify_multi_search(g_h,result,start,end);
+		if(pass)
+		{
+			std::cout << "Edge parallel: Test passed." << std::endl;
+		}
 	}
 
-	result = multi_search_scan_based_setup(g_d,start,end);
-	pass = verify_multi_search(g_h,result,start,end);
-	if(pass)
+	if(alg[2])
 	{
-		std::cout << "Scan based: Test passed." << std::endl;
+		result = multi_search_warp_based_setup(g_d,start,end);
+		pass = verify_multi_search(g_h,result,start,end);
+		if(pass)
+		{
+			std::cout << "Warp based: Test passed." << std::endl;
+		}
 	}
-	
+
+	if(alg[3])
+	{
+		result = multi_search_scan_based_setup(g_d,start,end);
+		pass = verify_multi_search(g_h,result,start,end);
+		if(pass)
+		{
+			std::cout << "Scan based: Test passed." << std::endl;
+		}
+	}
+		
 	/*result = multi_search_CTA_warp_based_setup(g_d,start,end);
 	pass = verify_multi_search(g_h,result,start,end);
 	if(pass)
