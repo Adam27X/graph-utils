@@ -117,14 +117,14 @@ __global__ void multi_search_shuffle_based(const int *R, const int *C, const int
 					}
 
 					//Winner describes adjlist
-					if(comm[warp_id][0] == lane_id)
+					/*if(comm[warp_id][0] == lane_id)
 					{
 						comm[warp_id][1] = r;
 						comm[warp_id][2] = r_end;
 						comm[warp_id][3] = v;
 						//r = 0; //Same thread cannot win twice
 						//r_end = 0;
-					}
+					}*/
 
 					//Strip mine winner's adjlist
 					int winner = comm[warp_id][0];
