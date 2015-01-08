@@ -138,7 +138,6 @@ __global__ void multi_search_scan_based(const int *R, const int *C, const int n,
 						int v_new = comm[threadIdx.x][1];
 						//Not sure if the v originally gathered by a thread will correspond to the parent of the neighbor that is found
 						// so keep track of the current depth and use that number instead
-						//if(atomicCAS(&d_row[w],INT_MAX,current_depth+1) == INT_MAX)
 						if(atomicCAS(&d_row[w],INT_MAX,d_row[v_new]+1) == INT_MAX)
 						{
 							int t = atomicAdd(&Q2_len,1);

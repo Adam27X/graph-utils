@@ -1,7 +1,7 @@
-#include "warp_based.cuh"
+#include "shuffle_based.cuh"
 #include "common.cuh"
 
-std::vector< std::vector<int> > multi_search_warp_based_setup(const device_graph &g, int start, int end)
+std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_graph &g, int start, int end)
 {
 	//For now, use "standard" grid/block sizes. These can be tuned later on.
 	dim3 dimGrid, dimBlock;
@@ -20,9 +20,9 @@ std::vector< std::vector<int> > multi_search_warp_based_setup(const device_graph
 	checkCudaErrors(cudaMallocPitch((void**)&Q2_d,&pitch_Q2,sizeof(int)*g.n,dimGrid.x));
 
         size_t GPU_memory_requirement = sizeof(int)*g.n*sources_to_store + 2*sizeof(int)*g.n*dimGrid.x + sizeof(int)*(g.n+1) + sizeof(int)*(g.m);
-        std::cout << "Warp based memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
+        std::cout << "Shuffle based memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
 
-	multi_search_warp_based<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,pitch_d,Q_d,pitch_Q,Q2_d,pitch_Q2,start,end);
+	multi_search_shuffle_based<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,pitch_d,Q_d,pitch_Q,Q2_d,pitch_Q2,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
         std::vector< std::vector<int> > d_host_vector;
@@ -34,7 +34,7 @@ std::vector< std::vector<int> > multi_search_warp_based_setup(const device_graph
 	checkCudaErrors(cudaFree(d_d));
 	float time = end_clock(start_event,end_event);
 
-	std::cout << "Time for warp-based neighbor gathering: " << std::setprecision(9) << time << " s" << std::endl;
+	std::cout << "Time for shuffle-based neighbor gathering: " << std::setprecision(9) << time << " s" << std::endl;
 
 	return d_host_vector;
 }
@@ -44,7 +44,7 @@ std::vector< std::vector<int> > multi_search_warp_based_setup(const device_graph
 // Betweenness Centrality (one call for BFS, another call for dependency accum? Hard to store all of the intermediate information...some sort of template-based if statement might be better)
 // All-pairs shortest path
 // Reachability Querying
-__global__ void multi_search_warp_based(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end)
+__global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end)
 {
 	int j = threadIdx.x;
 	int warp_id = threadIdx.x/32;
@@ -122,14 +122,15 @@ __global__ void multi_search_warp_based(const int *R, const int *C, const int n,
 						comm[warp_id][1] = r;
 						comm[warp_id][2] = r_end;
 						comm[warp_id][3] = v;
-						r = 0; //Same thread cannot win twice
-						r_end = 0;
+						//r = 0; //Same thread cannot win twice
+						//r_end = 0;
 					}
 
 					//Strip mine winner's adjlist
-					int r_gather = comm[warp_id][1] + lane_id;
-					int r_gather_end = comm[warp_id][2];
-					int v_new = comm[warp_id][3];
+					int winner = comm[warp_id][0];
+					int r_gather = __shfl(r,winner) + lane_id; //comm[warp_id][1] + lane_id; //Need to set r and r_end of winner AFTER distribution
+					int r_gather_end = __shfl(r_end,winner); //comm[warp_id][2]; 
+					int v_new = __shfl(v,winner); //comm[warp_id][3];
 					while(r_gather < r_gather_end)
 					{
 						volatile int w = C[r_gather];
@@ -141,6 +142,12 @@ __global__ void multi_search_warp_based(const int *R, const int *C, const int n,
 							Q2_row[t] = w;
 						}
 						r_gather += WARP_SIZE;
+					}
+
+					if(winner == lane_id) //Same thread cannot win twice
+					{
+						r = 0;
+						r_end = 0;
 					}
 				}
 

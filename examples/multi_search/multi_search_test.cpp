@@ -10,6 +10,7 @@
 #include "../../graph-utils/multi_search/warp_based.cuh"
 #include "../../graph-utils/multi_search/scan_based.cuh"
 #include "../../graph-utils/multi_search/CTA_warp.cuh"
+#include "../../graph-utils/multi_search/shuffle_based.cuh"
 
 void sequential(host_graph &g_h, int source, std::vector<int> &expected)
 {
@@ -164,7 +165,7 @@ int main(int argc, char **argv)
 
 	unsigned algorithm_choice;
 	std::cout << "Choose which algorithms to run." << std::endl;
-	std::cout << "Add 1 for linear with atomics, 2 for edge_parallel, 4 for warp-based, and 8 for scan-based." << std::endl;
+	std::cout << "Add 1 for linear with atomics, 2 for edge_parallel, 4 for warp-based, 8 for scan-based, and 16 for shuffle based." << std::endl;
 	std::cin >> algorithm_choice;
 	std::bitset<8> alg(algorithm_choice);
 
@@ -211,6 +212,16 @@ int main(int argc, char **argv)
 		}
 	}
 		
+	if(alg[4])
+	{
+		result = multi_search_shuffle_based_setup(g_d,start,end);
+		pass = verify_multi_search(g_h,result,start,end);
+		if(pass)
+		{
+			std::cout << "Shuffle based: Test passed." << std::endl;
+		}
+	}
+
 	/*result = multi_search_CTA_warp_based_setup(g_d,start,end);
 	pass = verify_multi_search(g_h,result,start,end);
 	if(pass)
