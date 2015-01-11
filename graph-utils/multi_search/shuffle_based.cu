@@ -39,6 +39,15 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 	return d_host_vector;
 }
 
+//Returns the most significant bit of a 32 bit number
+//Used for a pseudo "race and resolve" on a warp basis via __shfl()
+__device__ int __bfind(unsigned i)
+{
+	int b;
+	asm volatile("bfind.u32 %0, %1;" : "=r"(b) : "r"(i));
+	return b;
+}
+
 // How to adjust this algorithm to easily extend to the following problems:
 // Diameter sampling (needs a global variable for keeping track of the maximum distance seen from each source)
 // Betweenness Centrality (one call for BFS, another call for dependency accum? Hard to store all of the intermediate information...some sort of template-based if statement might be better)
@@ -47,7 +56,7 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 __global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end)
 {
 	int j = threadIdx.x;
-	int warp_id = threadIdx.x/32;
+	//int warp_id = threadIdx.x/32;
 	int lane_id = threadIdx.x & 0x1f;
 	__shared__ int  *Q_row;
 	__shared__ int *Q2_row;
@@ -89,7 +98,6 @@ __global__ void multi_search_shuffle_based(const int *R, const int *C, const int
 		while(1)
 		{
 			//Listing 9: Warp-based, strip-mined neighbor gathering
-			volatile __shared__ int comm[32][4]; //32 is the number of warps
 			int v, r, r_end;	
 			int k = threadIdx.x;
 
@@ -111,29 +119,25 @@ __global__ void multi_search_shuffle_based(const int *R, const int *C, const int
 				while(__any(r_end-r))
 				{
 					//Vie for control of warp
-					if(r_end-r)
+					/*if(r_end-r)
 					{
-						comm[warp_id][0] = lane_id;
+						comm[warp_id] = lane_id;
+					}*/
+					
+					int winner = lane_id; //= comm[warp_id];
+					unsigned vote = __ballot(r_end-r);
+					if(vote)
+					{
+						winner = __shfl(winner,__bfind(vote));	
 					}
 
-					//Winner describes adjlist
-					/*if(comm[warp_id][0] == lane_id)
-					{
-						comm[warp_id][1] = r;
-						comm[warp_id][2] = r_end;
-						comm[warp_id][3] = v;
-						//r = 0; //Same thread cannot win twice
-						//r_end = 0;
-					}*/
-
 					//Strip mine winner's adjlist
-					int winner = comm[warp_id][0];
 					int r_gather = __shfl(r,winner) + lane_id; //comm[warp_id][1] + lane_id; //Need to set r and r_end of winner AFTER distribution
 					int r_gather_end = __shfl(r_end,winner); //comm[warp_id][2]; 
 					int v_new = __shfl(v,winner); //comm[warp_id][3];
 					while(r_gather < r_gather_end)
 					{
-						volatile int w = C[r_gather];
+						int w = C[r_gather];
 						//Assuming no duplicate/self-edges in the graph, no atomics needed
 						if(d_row[w] == INT_MAX)
 						{
