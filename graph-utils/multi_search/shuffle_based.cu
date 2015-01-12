@@ -41,12 +41,12 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 
 //Returns the most significant bit of a 32 bit number
 //Used for a pseudo "race and resolve" on a warp basis via __shfl()
-__device__ int __bfind(unsigned i)
+/*__device__ int __bfind(unsigned i)
 {
 	int b;
 	asm volatile("bfind.u32 %0, %1;" : "=r"(b) : "r"(i));
 	return b;
-}
+}*/
 
 // How to adjust this algorithm to easily extend to the following problems:
 // Diameter sampling (needs a global variable for keeping track of the maximum distance seen from each source)
@@ -119,22 +119,12 @@ __global__ void multi_search_shuffle_based(const int *R, const int *C, const int
 				while(__any(r_end-r))
 				{
 					//Vie for control of warp
-					/*if(r_end-r)
-					{
-						comm[warp_id] = lane_id;
-					}*/
-					
-					int winner = lane_id; //= comm[warp_id];
-					unsigned vote = __ballot(r_end-r);
-					if(vote)
-					{
-						winner = __shfl(winner,__bfind(vote));	
-					}
+					int winner = race_and_resolve_warp(r_end-r);
 
 					//Strip mine winner's adjlist
-					int r_gather = __shfl(r,winner) + lane_id; //comm[warp_id][1] + lane_id; //Need to set r and r_end of winner AFTER distribution
-					int r_gather_end = __shfl(r_end,winner); //comm[warp_id][2]; 
-					int v_new = __shfl(v,winner); //comm[warp_id][3];
+					int r_gather = __shfl(r,winner) + lane_id; 
+					int r_gather_end = __shfl(r_end,winner); 
+					int v_new = __shfl(v,winner); 
 					while(r_gather < r_gather_end)
 					{
 						int w = C[r_gather];
