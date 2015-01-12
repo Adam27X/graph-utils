@@ -57,7 +57,7 @@ __global__ void multi_search_shuffle_based(const int *R, const int *C, const int
 {
 	int j = threadIdx.x;
 	//int warp_id = threadIdx.x/32;
-	int lane_id = threadIdx.x & 0x1f;
+	int lane_id = getLaneId();
 	__shared__ int  *Q_row;
 	__shared__ int *Q2_row;
 
