@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cuda.h>
-#include "../util_device.cuh"
+#include "kernel_utils.cuh"
 
 __device__ int __bfind(unsigned i);
 

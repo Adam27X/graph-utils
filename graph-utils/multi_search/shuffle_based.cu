@@ -1,5 +1,6 @@
 #include "shuffle_based.cuh"
 #include "common.cuh"
+#include "../race_and_resolve.cuh"
 
 std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_graph &g, int start, int end)
 {
@@ -38,15 +39,6 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 
 	return d_host_vector;
 }
-
-//Returns the most significant bit of a 32 bit number
-//Used for a pseudo "race and resolve" on a warp basis via __shfl()
-/*__device__ int __bfind(unsigned i)
-{
-	int b;
-	asm volatile("bfind.u32 %0, %1;" : "=r"(b) : "r"(i));
-	return b;
-}*/
 
 // How to adjust this algorithm to easily extend to the following problems:
 // Diameter sampling (needs a global variable for keeping track of the maximum distance seen from each source)

@@ -1,3 +1,5 @@
+#TODO: Objects directory, automated detection and separable compilation of .cu and .cpp files
+
 MULTI_SEARCH := multi_search
 
 program_CXX_SRCS := $(wildcard *.cpp)
@@ -25,17 +27,59 @@ NVFLAGS += $(foreach includedir,$(program_CU_INCLUDE_DIRS),-I$(includedir))
 
 .PHONY: all clean distclean
 
-all: $(MULTI_SEARCH)
+all: $(MULTI_SEARCH) 
 
 debug: CXXFLAGS = -g -O0 -std=c++0x -Wall -pedantic -DDEBUG $(EXTRA_FLAGS)
 debug: NVFLAGS = -O0 $(GEN_SM35) -g -G
 debug: NVFLAGS += $(foreach includedir,$(program_CU_INCLUDE_DIRS),-I$(includedir))
 debug: $(MULTI_SEARCH)
 
-$(MULTI_SEARCH): $(program_CXX_OBJS) $(program_CU_SRCS) $(program_HEADERS) $(program_CU_HEADERS)
-	nvcc $(NVFLAGS) $(CPPFLAGS) $(LDFLAGS) $(program_CU_SRCS) $(program_CXX_OBJS) -o $(MULTI_SEARCH)
+#$(MULTI_SEARCH): $(program_CXX_OBJS) $(program_CU_SRCS) $(program_HEADERS) $(program_CU_HEADERS)
+	#nvcc $(NVFLAGS) $(CPPFLAGS) $(LDFLAGS) $(program_CU_SRCS) $(program_CXX_OBJS) -o $(MULTI_SEARCH)
+
+common.cu.o: ../../graph-utils/multi_search/common.cu
+	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
+
+CTA_warp.cu.o: ../../graph-utils/multi_search/CTA_warp.cu
+	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
+
+edge_parallel.cu.o: ../../graph-utils/multi_search/edge_parallel.cu
+	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
+
+linear_with_atomics.cu.o: ../../graph-utils/multi_search/linear_with_atomics.cu
+	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
+
+scan_based.cu.o: ../../graph-utils/multi_search/scan_based.cu
+	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
+
+shuffle_based.cu.o: ../../graph-utils/multi_search/shuffle_based.cu
+	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
+
+warp_based.cu.o: ../../graph-utils/multi_search/warp_based.cu
+	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
+
+race_and_resolve.cu.o: ../../graph-utils/race_and_resolve.cu
+	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
+
+util_device.cu.o: ../../util_device.cu
+	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
+
+multi_search_test.o: multi_search_test.cpp
+	g++ $(CXXFLAGS) $(CPPFLAGS) -o $@ -c $<
+
+device_graph.o: ../../device_graph.cpp
+	g++ $(CXXFLAGS) $(CPPFLAGS) -o $@ -c $<
+
+parse.o: ../../parse.cpp
+	g++ $(CXXFLAGS) $(CPPFLAGS) -o $@ -c $<
+
+util.o: ../../util.cpp
+	g++ $(CXXFLAGS) $(CPPFLAGS) -o $@ -c $<
+
+$(MULTI_SEARCH): $(PROGRAM_CXX_OBJS) common.cu.o CTA_warp.cu.o edge_parallel.cu.o linear_with_atomics.cu.o scan_based.cu.o shuffle_based.cu.o warp_based.cu.o race_and_resolve.cu.o util_device.cu.o multi_search_test.o device_graph.o parse.o util.o
+	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ $+ 
 
 clean:
-	@- $(RM) $(MULTI_SEARCH) $(program_CXX_OBJS) *~ 
+	@- $(RM) $(MULTI_SEARCH) *.o *~ 
 
 distclean: clean
