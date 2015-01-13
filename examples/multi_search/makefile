@@ -25,6 +25,8 @@ NVFLAGS := -O3 -rdc=true
 NVFLAGS += $(GEN_SM35)
 NVFLAGS += $(foreach includedir,$(program_CU_INCLUDE_DIRS),-I$(includedir))
 
+OBJECTS := common.cu.o CTA_warp.cu.o edge_parallel.cu.o linear_with_atomics.cu.o scan_based.cu.o shuffle_based.cu.o warp_based.cu.o race_and_resolve.cu.o util_device.cu.o $(program_CXX_OBJS)
+
 .PHONY: all clean distclean
 
 all: $(MULTI_SEARCH) 
@@ -64,22 +66,11 @@ race_and_resolve.cu.o: ../../graph-utils/race_and_resolve.cu
 util_device.cu.o: ../../util_device.cu
 	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
 
-multi_search_test.o: multi_search_test.cpp
-	g++ $(CXXFLAGS) $(CPPFLAGS) -o $@ -c $<
-
-device_graph.o: ../../device_graph.cpp
-	g++ $(CXXFLAGS) $(CPPFLAGS) -o $@ -c $<
-
-parse.o: ../../parse.cpp
-	g++ $(CXXFLAGS) $(CPPFLAGS) -o $@ -c $<
-
-util.o: ../../util.cpp
-	g++ $(CXXFLAGS) $(CPPFLAGS) -o $@ -c $<
-
-$(MULTI_SEARCH): $(PROGRAM_CXX_OBJS) common.cu.o CTA_warp.cu.o edge_parallel.cu.o linear_with_atomics.cu.o scan_based.cu.o shuffle_based.cu.o warp_based.cu.o race_and_resolve.cu.o util_device.cu.o multi_search_test.o device_graph.o parse.o util.o
+$(MULTI_SEARCH): $(OBJECTS)
+	echo $(program_CXX_OBJS)
 	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ $+ 
 
 clean:
-	@- $(RM) $(MULTI_SEARCH) *.o *~ 
+	@- $(RM) $(MULTI_SEARCH) $(OBJECTS) *~ 
 
 distclean: clean
