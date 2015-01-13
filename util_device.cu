@@ -58,6 +58,10 @@ void choose_device(const program_options &op)
 	size_t free_mem, total_mem;
 	checkCudaErrors(cudaMemGetInfo(&free_mem,&total_mem));
 	double memBandwidth = (prop.memoryClockRate * 1000.0) * (prop.memoryBusWidth / 8 * 2) / 1.0e9;
+	int runtime_version;
+	checkCudaErrors(cudaRuntimeGetVersion(&runtime_version));
+
+	std::cout << "CUDA Runtime Version: " << runtime_version << std::endl;
 	std::cout << "Chosen Device: " << prop.name << std::endl;
 	std::cout << "Compute Capability: " << prop.major << "." << prop.minor << std::endl;
 	std::cout << "Number of Streaming Multiprocessors: " << prop.multiProcessorCount << std::endl;
