@@ -12,14 +12,14 @@ program_CU_HEADERS += $(wildcard ../../*.cuh)
 program_CU_HEADERS += $(wildcard ../../graph-utils/*.cuh)
 program_CU_OBJS := ${program_CU_SRCS:.cu=.cuo}
 
-program_INCLUDE_DIRS := . ../../ ../../graph-utils/multi_search/ /usr/local/cuda-6.0/include/ ../../graph-utils
+program_INCLUDE_DIRS := . ../../ ../../graph-utils/multi_search/ /usr/local/cuda-7.0/include/ ../../graph-utils
 program_CU_INCLUDE_DIRS := /home/users/amclaugh/CUB/cub-1.3.2/
 CPPFLAGS += $(foreach includedir,$(program_INCLUDE_DIRS),-I$(includedir))
-CXXFLAGS += -g -O3 -std=c++0x -Wall -pedantic
+CXXFLAGS += -g -O3 -std=c++11 -Wall -pedantic
 
 GEN_SM35 := -gencode=arch=compute_35,code=\"sm_35,compute_35\"
 GEN_SM20 := -gencode=arch=compute_20,code=\"sm_20,compute_20\"
-NVFLAGS := -O3 -rdc=true
+NVFLAGS := -O3 -rdc=true -std=c++11
 NVFLAGS += $(GEN_SM35)
 NVFLAGS += $(foreach includedir,$(program_CU_INCLUDE_DIRS),-I$(includedir))
 
@@ -31,7 +31,7 @@ OBJECTS = $(program_CU_OBJS) $(program_CXX_OBJS)
 
 all: $(MULTI_SEARCH) 
 
-debug: CXXFLAGS = -g -O0 -std=c++0x -Wall -pedantic -DDEBUG $(EXTRA_FLAGS)
+debug: CXXFLAGS = -g -O0 -std=c++11 -Wall -pedantic -DDEBUG $(EXTRA_FLAGS)
 debug: NVFLAGS = -O0 $(GEN_SM35) -g -G
 debug: NVFLAGS += $(foreach includedir,$(program_CU_INCLUDE_DIRS),-I$(includedir))
 debug: $(MULTI_SEARCH)
