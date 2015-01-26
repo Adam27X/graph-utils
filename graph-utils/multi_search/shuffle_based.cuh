@@ -10,6 +10,8 @@
 #include "../../util_device.cuh"
 #include "../race_and_resolve.cuh"
 
+std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_graph &g, int start, int end);
+
 // How to adjust this algorithm to easily extend to the following problems:
 // Diameter sampling (needs a global variable for keeping track of the maximum distance seen from each source)
 // Betweenness Centrality (one call for BFS, another call for dependency accum? Hard to store all of the intermediate information...some sort of template-based if statement might be better)
@@ -17,8 +19,8 @@
 // Reachability Querying
 
 // Can Lambda Expressions be leveraged here? Yes. The core function needs to be a __device__ function and then its uses can all be global functions (the multi_search global function will be mostly empty)
-template <class Func>
-__device__ void multi_search(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end, Func getMax)
+template <class EndFunc, class InitFunc, class UpdateFunc>
+__device__ void multi_search(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end, EndFunc getMax, InitFunc initSigma, UpdateFunc updateSigma)
 {
         int j = threadIdx.x;
         int lane_id = getLaneId();
@@ -45,6 +47,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, si
                         {
                                 d_row[k] = INT_MAX;
                         }
+			initSigma(k,i);
                 }
                 __syncthreads();
 
@@ -99,6 +102,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, si
                                                         int t = atomicAdd(&Q2_len,1);
                                                         Q2_row[t] = w;
                                                 }
+						updateSigma(d_row,v_new,w);
                                                 r_gather += WARP_SIZE;
                                         }
 
@@ -160,22 +164,4 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, si
 
 __global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end);
 __global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, int *max, const int start, const int end);
-
-/*__global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end)
-{
-	auto null_lamb = [](int){};
-	multi_search(R,C,n,d,pitch_d,Q,pitch_Q,Q2,pitch_Q2,start,end,null_lamb);	
-}
-
-__global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, int *max, const int start, const int end)
-{
-	auto max_lamb = [max](int v) //Using a separate variable for kinder syntax highlighting in vim
-	{
-		if(v != INT_MAX) 
-		{
-			atomicMax(max,v); 
-		}
-	};
-
-	multi_search(R,C,n,d,pitch_d,Q,pitch_Q,Q2,pitch_Q2,start,end,max_lamb);
-}*/
+__global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n, int *d, size_t pitch_d, unsigned long long *sigma, size_t pitch_sigma, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end);

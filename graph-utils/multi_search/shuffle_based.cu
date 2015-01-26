@@ -42,8 +42,10 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 //Wrappers
 __global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end)
 {
-        auto null_lamb = [](int){};
-        multi_search(R,C,n,d,pitch_d,Q,pitch_Q,Q2,pitch_Q2,start,end,null_lamb);
+        auto null_lamb_1 = [](int){};
+	auto null_lamb_2 = [](int,int){};
+	auto null_lamb_3 = [](int*,int,int){};
+        multi_search(R,C,n,d,pitch_d,Q,pitch_Q,Q2,pitch_Q2,start,end,null_lamb_1,null_lamb_2,null_lamb_3);
 }
 
 __global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, int *max, const int start, const int end)
@@ -56,5 +58,37 @@ __global__ void diameter_sampling(const int *R, const int *C, const int n, int *
                 }
         };
 
-        multi_search(R,C,n,d,pitch_d,Q,pitch_Q,Q2,pitch_Q2,start,end,max_lamb);
+	auto null_lamb_1 = [](int,int){};
+	auto null_lamb_2 = [](int*,int,int){};
+
+        multi_search(R,C,n,d,pitch_d,Q,pitch_Q,Q2,pitch_Q2,start,end,max_lamb,null_lamb_1,null_lamb_2);
+}
+
+__global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n, int *d, size_t pitch_d, unsigned long long *sigma, size_t pitch_sigma, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end)
+{
+	auto null_lamb = [](int){};
+
+	auto init_sigma_row = [sigma,pitch_sigma] (int k, int i)
+	{
+		unsigned long long *sigma_row = (unsigned long long*)((char*)sigma + blockIdx.x*pitch_sigma);
+		if(k == i)
+		{
+			sigma_row[k] = 1;
+		}
+		else
+		{
+			sigma_row[k] = 0;
+		}
+	};
+
+	auto update_sigma_row = [sigma,pitch_sigma] (int *d_row, int v, int w)
+	{
+		if(d_row[w] == d_row[v]+1)
+		{
+			unsigned long long *sigma_row = (unsigned long long*)((char*)sigma + blockIdx.x*pitch_sigma);
+			atomicAdd(&sigma_row[w],sigma_row[v]);
+		}
+	};
+
+	multi_search(R,C,n,d,pitch_d,Q,pitch_Q,Q2,pitch_Q2,start,end,null_lamb,init_sigma_row,update_sigma_row);
 }

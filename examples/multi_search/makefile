@@ -37,7 +37,7 @@ debug: NVFLAGS += $(foreach includedir,$(program_CU_INCLUDE_DIRS),-I$(includedir
 debug: $(MULTI_SEARCH)
 
 # Rule for compilation of CUDA source (C++ source can be handled automatically)
-%.cuo: %.cu %.cuh
+%.cuo: %.cu 
 	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
 
 $(MULTI_SEARCH): $(OBJECTS) 

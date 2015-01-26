@@ -3,7 +3,6 @@
 
 #include "../../parse.h"
 #include "../../util.h"
-#include "../../util_device.cuh"
 #include "../../device_graph.h"
 #include "../../graph-utils/multi_search/diameter_sampling/diameter_sampling.cuh"
 
@@ -98,10 +97,9 @@ int main(int argc, char **argv)
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 	
 	int result = diameter_sampling_setup(g_d,start,end);
-	bool pass = verify_diameter(g_h,result,start,end);
-	if(pass)
+	//bool pass = verify_diameter(g_h,result,start,end);
+	//if(pass)
 	{
-		std::cout << "Shuffle based: Test passed." << std::endl;
 		std::cout << "Diameter: " << result << std::endl;
 	}
 
