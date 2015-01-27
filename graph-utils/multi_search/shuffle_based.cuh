@@ -32,9 +32,16 @@ struct pitch
 	size_t endpoints;
 };
 
+//Get block of data from pitched pointer and pitch size
+template <typename T>
+__device__ __forceinline__ T* get_row(T* data, size_t p)
+{
+	return (T*)((char*)data + blockIdx.x*p);	
+}
+
 // Can Lambda Expressions be leveraged here? Yes. The core function needs to be a __device__ function and then its uses can all be global functions (the multi_search global function will be mostly empty)
 template <class EndFunc, class InitFunc, class UpdateFunc>
-__device__ void multi_search(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end, EndFunc getMax, InitFunc initSigma, UpdateFunc updateSigma)
+__device__ void multi_search(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end, EndFunc getMax, InitFunc initLocal, UpdateFunc updateSigma)
 {
         int j = threadIdx.x;
         int lane_id = getLaneId();
@@ -43,14 +50,17 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 
         if(j == 0)
         {
-                Q_row = (int*)((char*)Q + blockIdx.x*p.Q);
-                Q2_row = (int*)((char*)Q2 + blockIdx.x*p.Q2);
+                //Q_row = (int*)((char*)Q + blockIdx.x*p.Q);
+		Q_row = get_row(Q,p.Q);
+                //Q2_row = (int*)((char*)Q2 + blockIdx.x*p.Q2);
+		Q2_row = get_row(Q2,p.Q2);
         }
         __syncthreads();
 
         for(int i=blockIdx.x+start; i<end; i+=gridDim.x)
         {
-                int *d_row = (int*)((char*)d + blockIdx.x*p.d);
+                //int *d_row = (int*)((char*)d + blockIdx.x*p.d);
+		int *d_row = get_row(d,p.d);
                 for(int k=threadIdx.x; k<n; k+=blockDim.x)
                 {
                         if(k == i)
@@ -61,7 +71,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                         {
                                 d_row[k] = INT_MAX;
                         }
-			initSigma(k,i);
+			initLocal(k,i);
                 }
                 __syncthreads();
 

@@ -8,11 +8,13 @@
 #include "../../device_graph.h"
 #include "../../graph-utils/multi_search/all_pairs_shortest_paths/all_pairs_shortest_paths.cuh"
 
-void sequential(host_graph &g_h, int source, std::vector<int> &expected, int &max)
+void sequential(host_graph &g_h, int source, std::vector<int> &expected, std::vector<unsigned long long> &paths)
 {
 	std::queue<int> Q;
 	expected.assign(g_h.n,INT_MAX);
 	expected[source] = 0;
+	paths.assign(g_h.n,0);
+	paths[source] = 1;
 	Q.push(source);
 	while(!Q.empty())
 	{
@@ -27,17 +29,22 @@ void sequential(host_graph &g_h, int source, std::vector<int> &expected, int &ma
 				expected[w] = expected[v] + 1;
 				Q.push(w);
 			}
+			if(expected[w] == expected[v] + 1)
+			{
+				paths[w] += paths[v];
+			}
 		}
 	}
 
 }
 
-bool verify_apsp(host_graph &g_h, int result, int start, int end)
+bool verify_apsp(host_graph &g_h, std::vector< std::vector<unsigned long long> > &result, int start, int end)
 {
 	//Obtain sequential result
 	const int number_of_rows = g_h.n; //Number of SMs on the GPU used for computation
 	size_t sources_to_store = (g_h.n < number_of_rows) ? g_h.n - start : number_of_rows;
 	std::vector< std::vector<int> > expected(sources_to_store);
+	std::vector< std::vector<unsigned long long> > paths(sources_to_store);
 	std::vector<int> sources(sources_to_store);
 	if(g_h.n < number_of_rows)
 	{
@@ -57,13 +64,38 @@ bool verify_apsp(host_graph &g_h, int result, int start, int end)
 		}	
 	}
 
-	int max = 0;
 	for(unsigned i=0; i<sources_to_store; i++)
 	{
-		sequential(g_h,sources[i],expected[i],max);
+		sequential(g_h,sources[i],expected[i],paths[i]);
 	}
 
-	return result == max;
+	bool match = true;
+	int wrong_source;
+	int wrong_dest;
+
+        for(unsigned j=0; j<sources_to_store; j++)
+        {
+                for(int i=0; i<g_h.n; i++)
+                {
+                        if(paths[j][i] != result[j][i])
+                        {
+                                match = false;
+                                wrong_source = sources[j];
+                                //wrong_source_index = j;
+                                wrong_dest = i;
+                                std::cout << "Mismatch for source " << wrong_source << " and dest " << wrong_dest << std::endl;
+                                std::cout << "Expected number of SPs: " << paths[j][i] << std::endl;
+                                std::cout << "Actual number of SPs: " << result[j][i] << std::endl;
+                                break;
+                        }
+                }
+                if(match == false)
+                {
+                        break;
+                }
+        }
+
+	return match;
 }
 
 int main(int argc, char **argv)
@@ -92,6 +124,11 @@ int main(int argc, char **argv)
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 	
 	std::vector< std::vector<unsigned long long> > result = all_pairs_shortest_paths_setup(g_d,start,end);
+	bool res = verify_apsp(g_h,result,start,end);
+	if(res)
+	{	
+		std::cout << "Test passed." << std::endl;
+	}
 
 	return 0;
 }

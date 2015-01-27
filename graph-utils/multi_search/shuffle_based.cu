@@ -71,7 +71,8 @@ __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n
 
 	auto init_sigma_row = [sigma,p] (int k, int i)
 	{
-		unsigned long long *sigma_row = (unsigned long long*)((char*)sigma + blockIdx.x*p.sigma);
+		//unsigned long long *sigma_row = (unsigned long long*)((char*)sigma + blockIdx.x*p.sigma);
+		auto sigma_row = get_row(sigma,p.sigma);
 		if(k == i)
 		{
 			sigma_row[k] = 1;
@@ -86,7 +87,8 @@ __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n
 	{
 		if(d_row[w] == d_row[v]+1)
 		{
-			unsigned long long *sigma_row = (unsigned long long*)((char*)sigma + blockIdx.x*p.sigma);
+			//unsigned long long *sigma_row = (unsigned long long*)((char*)sigma + blockIdx.x*p.sigma);
+			auto sigma_row = get_row(sigma,p.sigma);
 			atomicAdd(&sigma_row[w],sigma_row[v]);
 		}
 	};
@@ -94,8 +96,30 @@ __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n
 	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb,init_sigma_row,update_sigma_row);
 }
 
+//TODO: Make sure bc is memset to 0 before calling this function
 __global__ void betweenness_centrality(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end)
 {
-	//auto init_sigma_delta_bc = [pitch,sigma,delta,endpoints,
+	auto init_sigma_delta = [p,sigma,delta] (int k, int i)
+	{
+		unsigned long long *sigma_row = (unsigned long long*)((char*)sigma + blockIdx.x*p.sigma);
+		float *delta_row = (float *)((char*)delta + blockIdx.x*p.delta);
+		if(k == i)
+		{
+			sigma_row[k] = 1;
+		}
+		else
+		{
+			sigma_row[k] = 0;
+		}
+		delta_row[k] = 0;
+	};
+
+	__shared__ int S_len;
+	__shared__ int endpoints_len;
+	__shared__ int current_depth;
+	auto init_S_endpoints = [p,S,endpoints,S_len,endpoints_len] ()
+	{
+		int *S_row = (int*)((char*)S + blockIdx.x*p.S);
+	};
 
 }
