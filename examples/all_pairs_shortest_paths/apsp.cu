@@ -72,6 +72,7 @@ bool verify_apsp(host_graph &g_h, std::vector< std::vector<unsigned long long> >
 	bool match = true;
 	int wrong_source;
 	int wrong_dest;
+	int wrong_source_index;
 
         for(unsigned j=0; j<sources_to_store; j++)
         {
@@ -81,7 +82,7 @@ bool verify_apsp(host_graph &g_h, std::vector< std::vector<unsigned long long> >
                         {
                                 match = false;
                                 wrong_source = sources[j];
-                                //wrong_source_index = j;
+                               	wrong_source_index = j;
                                 wrong_dest = i;
                                 std::cout << "Mismatch for source " << wrong_source << " and dest " << wrong_dest << std::endl;
                                 std::cout << "Expected number of SPs: " << paths[j][i] << std::endl;
@@ -93,6 +94,35 @@ bool verify_apsp(host_graph &g_h, std::vector< std::vector<unsigned long long> >
                 {
                         break;
                 }
+        }
+
+        if(match == false)
+        {
+                for(int i=0; i<g_h.n; i++)
+                {
+                        if(i == 0)
+                        {
+                                std::cout << "Expected = [" << paths[wrong_source_index][i];
+                        }
+                        else
+                        {
+                                std::cout << "," << paths[wrong_source_index][i];
+                        }
+                }
+                std::cout << "]" << std::endl;
+                
+                for(int i=0; i<g_h.n; i++)
+                {
+                        if(i == 0)
+                        {
+				std::cout << "Actual = [" << result[wrong_source_index][i];
+                        }
+                        else
+                        {       
+				std::cout << "," << result[wrong_source_index][i];
+                        }
+                }
+                std::cout << "]" << std::endl;
         }
 
 	return match;
@@ -124,10 +154,13 @@ int main(int argc, char **argv)
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 	
 	std::vector< std::vector<unsigned long long> > result = all_pairs_shortest_paths_setup(g_d,start,end);
-	bool res = verify_apsp(g_h,result,start,end);
-	if(res)
-	{	
-		std::cout << "Test passed." << std::endl;
+	if(op.verify)
+	{
+		bool res = verify_apsp(g_h,result,start,end);
+		if(res)
+		{	
+			std::cout << "Test passed." << std::endl;
+		}
 	}
 
 	return 0;

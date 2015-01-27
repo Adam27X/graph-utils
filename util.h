@@ -8,10 +8,11 @@
 class program_options
 {
 public:
-	program_options() : device(-1), infile(NULL) {}
+	program_options() : device(-1), infile(NULL), verify(false) {}
 	
 	int device;
 	char *infile;
+	bool verify;
 };
 
 program_options parse_arguments(int argc, char *argv[]);

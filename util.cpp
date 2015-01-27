@@ -7,15 +7,16 @@ program_options parse_arguments(int argc, char *argv[])
 
 	static struct option long_options[] =
 	{
-		{"device",required_argument,0,'i'},
+		{"device",required_argument,0,'d'},
 		{"help",no_argument,0,'h'},
 		{"infile",required_argument,0,'i'},
+		{"verify",no_argument,0,'v'},
 		{0,0,0,0} //Terminate with null
 	};
 
 	int option_index = 0;
 
-	while((c = getopt_long(argc,argv,"d:hi:",long_options,&option_index)) != -1)
+	while((c = getopt_long(argc,argv,"d:hi:v",long_options,&option_index)) != -1)
 	{
 		switch(c)
 		{
@@ -29,6 +30,10 @@ program_options parse_arguments(int argc, char *argv[])
 
 			case 'i':
 				op.infile = optarg;
+			break;
+
+			case 'v':
+				op.verify = true;
 			break;
 
 			case '?': //Invalid argument: getopt will print the error msg itself

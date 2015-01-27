@@ -215,10 +215,13 @@ int main(int argc, char **argv)
 	if(alg[4])
 	{
 		result = multi_search_shuffle_based_setup(g_d,start,end);
-		pass = verify_multi_search(g_h,result,start,end);
-		if(pass)
+		if(op.verify)
 		{
-			std::cout << "Shuffle based: Test passed." << std::endl;
+			pass = verify_multi_search(g_h,result,start,end);
+			if(pass)
+			{
+				std::cout << "Shuffle based: Test passed." << std::endl;
+			}
 		}
 	}
 
