@@ -84,7 +84,7 @@ __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n
 
 	auto update_sigma_row = [sigma,p] (int *d_row, int v, int w)
 	{
-		if(d_row[w] == d_row[v]+1)
+		if(d_row[w] == (d_row[v]+1))
 		{
 			auto sigma_row = get_row(sigma,p.sigma); //In theory this needs to be called every iteration on i if we're going to store all of the results
 			atomicAdd(&sigma_row[w],sigma_row[v]);

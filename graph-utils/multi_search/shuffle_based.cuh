@@ -120,9 +120,12 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                                         {
                                                 int w = C[r_gather];
                                                 //Assuming no duplicate/self-edges in the graph, no atomics needed
-                                                if(d_row[w] == INT_MAX)
+                                                //if(d_row[w] == INT_MAX)
+						//atomicCAS is necessary here for appropriately computing the number of shortest paths
+						//this restriction can be lifted if the calculation of d is all that matters. 
+						//This discrepancy can be handled via lambdas, but is of low priority as of right now.
+						if(atomicCAS(&d_row[w],INT_MAX,d_row[v_new]+1) == INT_MAX)
                                                 {
-                                                        d_row[w] = d_row[v_new]+1;
                                                         int t = atomicAdd(&Q2_len,1);
                                                         Q2_row[t] = w;
                                                 }
