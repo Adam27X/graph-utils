@@ -41,7 +41,7 @@ void sequential(host_graph &g_h, int source, std::vector<int> &expected, std::ve
 bool verify_apsp(host_graph &g_h, std::vector< std::vector<unsigned long long> > &result, int start, int end)
 {
 	//Obtain sequential result
-	const int number_of_rows = g_h.n; //Number of SMs on the GPU used for computation
+	const int number_of_rows = result.size(); //Number of SMs on the GPU used for computation
 	size_t sources_to_store = (g_h.n < number_of_rows) ? g_h.n - start : number_of_rows;
 	std::vector< std::vector<int> > expected(sources_to_store);
 	std::vector< std::vector<unsigned long long> > paths(sources_to_store);

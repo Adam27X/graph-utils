@@ -69,11 +69,9 @@ __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n
 {
 	auto null_lamb = [](int){};
 
-	auto sigma_row = get_row(sigma,p.sigma);
-	auto init_sigma_row = [sigma_row] (int k, int i)
+	auto init_sigma_row = [sigma,p] (int k, int i)
 	{
-		//unsigned long long *sigma_row = (unsigned long long*)((char*)sigma + blockIdx.x*p.sigma);
-		//auto sigma_row = get_row(sigma,p.sigma);
+		auto sigma_row = get_row(sigma,p.sigma); //In theory this needs to be called every iteration on i if we're going to store all of the results
 		if(k == i)
 		{
 			sigma_row[k] = 1;
@@ -84,12 +82,11 @@ __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n
 		}
 	};
 
-	auto update_sigma_row = [sigma_row] (int *d_row, int v, int w)
+	auto update_sigma_row = [sigma,p] (int *d_row, int v, int w)
 	{
 		if(d_row[w] == d_row[v]+1)
 		{
-			//unsigned long long *sigma_row = (unsigned long long*)((char*)sigma + blockIdx.x*p.sigma);
-			//auto sigma_row = get_row(sigma,p.sigma);
+			auto sigma_row = get_row(sigma,p.sigma); //In theory this needs to be called every iteration on i if we're going to store all of the results
 			atomicAdd(&sigma_row[w],sigma_row[v]);
 		}
 	};
