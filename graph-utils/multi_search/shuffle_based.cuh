@@ -18,9 +18,23 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 // All-pairs shortest path
 // Reachability Querying
 
+struct pitch
+{
+	pitch() : d(0),sigma(0),delta(0),bc(0),Q(0),Q2(0),S(0),endpoints(0) { }
+
+	size_t d;
+	size_t sigma;
+	size_t delta;
+	size_t bc;
+	size_t Q;
+	size_t Q2;
+	size_t S;
+	size_t endpoints;
+};
+
 // Can Lambda Expressions be leveraged here? Yes. The core function needs to be a __device__ function and then its uses can all be global functions (the multi_search global function will be mostly empty)
 template <class EndFunc, class InitFunc, class UpdateFunc>
-__device__ void multi_search(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end, EndFunc getMax, InitFunc initSigma, UpdateFunc updateSigma)
+__device__ void multi_search(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end, EndFunc getMax, InitFunc initSigma, UpdateFunc updateSigma)
 {
         int j = threadIdx.x;
         int lane_id = getLaneId();
@@ -29,14 +43,14 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, si
 
         if(j == 0)
         {
-                Q_row = (int*)((char*)Q + blockIdx.x*pitch_Q);
-                Q2_row = (int*)((char*)Q2 + blockIdx.x*pitch_Q2);
+                Q_row = (int*)((char*)Q + blockIdx.x*p.Q);
+                Q2_row = (int*)((char*)Q2 + blockIdx.x*p.Q2);
         }
         __syncthreads();
 
         for(int i=blockIdx.x+start; i<end; i+=gridDim.x)
         {
-                int *d_row = (int*)((char*)d + blockIdx.x*pitch_d);
+                int *d_row = (int*)((char*)d + blockIdx.x*p.d);
                 for(int k=threadIdx.x; k<n; k+=blockDim.x)
                 {
                         if(k == i)
@@ -162,6 +176,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, si
         }
 }
 
-__global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end);
-__global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, size_t pitch_d, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, int *max, const int start, const int end);
-__global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n, int *d, size_t pitch_d, unsigned long long *sigma, size_t pitch_sigma, int *Q, size_t pitch_Q, int *Q2, size_t pitch_Q2, const int start, const int end);
+__global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end);
+__global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, int *max, const pitch p, const int start, const int end);
+__global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, int *Q, int *Q2, const pitch p, const int start, const int end);
+__global__ void betweenness_centrality(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end);

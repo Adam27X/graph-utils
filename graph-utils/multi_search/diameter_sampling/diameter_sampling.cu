@@ -9,20 +9,21 @@ int diameter_sampling_setup(const device_graph &g, int start, int end)
 
 	//Device pointers
 	int *d_d, *Q_d, *Q2_d;
-	size_t pitch_d, pitch_Q, pitch_Q2;
+	pitch p;
+	//size_t pitch_d, pitch_Q, pitch_Q2;
 	cudaEvent_t start_event, end_event;
 
 	//Allocate algorithm-specific memory
 	start_clock(start_event,end_event);
-	checkCudaErrors(cudaMallocPitch((void**)&d_d,&pitch_d,sizeof(int)*g.n,sources_to_store));
-	checkCudaErrors(cudaMallocPitch((void**)&Q_d,&pitch_Q,sizeof(int)*g.n,dimGrid.x));
-	checkCudaErrors(cudaMallocPitch((void**)&Q2_d,&pitch_Q2,sizeof(int)*g.n,dimGrid.x));
+	checkCudaErrors(cudaMallocPitch((void**)&d_d,&p.d,sizeof(int)*g.n,sources_to_store));
+	checkCudaErrors(cudaMallocPitch((void**)&Q_d,&p.Q,sizeof(int)*g.n,dimGrid.x));
+	checkCudaErrors(cudaMallocPitch((void**)&Q2_d,&p.Q2,sizeof(int)*g.n,dimGrid.x));
 	thrust::device_vector<int> diameter(1,0);
 
         size_t GPU_memory_requirement = sizeof(int)*g.n*sources_to_store + 2*sizeof(int)*g.n*dimGrid.x + sizeof(int)*(g.n+1) + sizeof(int)*(g.m);
         std::cout << "Shuffle based memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
 
-	diameter_sampling<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,pitch_d,Q_d,pitch_Q,Q2_d,pitch_Q2,thrust::raw_pointer_cast(diameter.data()),start,end);
+	diameter_sampling<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,Q_d,Q2_d,thrust::raw_pointer_cast(diameter.data()),p,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
 	//Free algorithm-specific memory
