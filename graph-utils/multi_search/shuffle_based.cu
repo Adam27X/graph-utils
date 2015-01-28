@@ -43,7 +43,7 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 //Wrappers
 __global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end)
 {
-        auto null_lamb_1 = [](int){};
+        auto null_lamb_1 = [](int){}; //A bit ugly, but it works
 	auto null_lamb_2 = [](int,int){};
 	auto null_lamb_3 = [](int*,int){};
 	auto null_lamb_4 = [](int*,int,int){};
@@ -126,10 +126,12 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int n, 
 	__shared__ int S_len;
 	__shared__ int endpoints_len;
 	__shared__ int current_depth;
-	auto init_S_endpoints = [p,S,endpoints,&S_len,&endpoints_len] (int i)
+	__shared__ int* S_row;
+	__shared__ int* endpoints_row;
+	auto init_S_endpoints = [p,S,endpoints,&S_len,&endpoints_len,&S_row,&endpoints_row] (int i)
 	{
-		auto S_row = get_row(S,p.S);
-		auto endpoints_row = get_row(endpoints,p.endpoints);
+		S_row = get_row(S,p.S);
+		endpoints_row = get_row(endpoints,p.endpoints);
 		S_row[0] = i;
 		S_len = 1;
 		endpoints_row[0] = 0;
