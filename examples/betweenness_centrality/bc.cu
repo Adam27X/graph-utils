@@ -1,5 +1,6 @@
 #include <iostream>
 #include <queue>
+#include <stack>
 #include <vector>
 
 #include "../../parse.h"
@@ -7,18 +8,22 @@
 #include "../../device_graph.h"
 #include "../../graph-utils/multi_search/betweenness_centrality/betweenness_centrality.cuh"
 
-void sequential(host_graph &g_h, int source, std::vector<int> &expected, std::vector<unsigned long long> &paths)
+void sequential(host_graph &g_h, int source, std::vector<int> &expected, std::vector<float> &delta)
 {
 	std::queue<int> Q;
 	expected.assign(g_h.n,INT_MAX);
 	expected[source] = 0;
-	paths.assign(g_h.n,0);
+	std::vector<unsigned long long> paths(g_h.n,0);
 	paths[source] = 1;
+	delta.assign(g_h.n,0.0f);
 	Q.push(source);
+	std::stack<int> S;
+
 	while(!Q.empty())
 	{
 		int v = Q.front();
 		Q.pop();
+		S.push(v);
 
 		for(int k=g_h.R[v]; k<g_h.R[v+1]; k++)
 		{
@@ -35,15 +40,29 @@ void sequential(host_graph &g_h, int source, std::vector<int> &expected, std::ve
 		}
 	}
 
+	while(!S.empty())
+	{
+		int w = S.top();
+		S.pop();
+		for(int k=g_h.R[w]; k<g_h.R[w+1]; k++)
+		{
+			int v = g_h.C[k];
+			if(expected[v] == (expected[w]-1))
+			{
+				delta[v] += (paths[v]/(float)paths[w])*(1.0f+delta[w]);
+			}
+		}
+	}
+
 }
 
-bool verify_apsp(host_graph &g_h, std::vector< std::vector<unsigned long long> > &result, int start, int end)
+void verify_delta(host_graph &g_h, std::vector< std::vector<float> > &result, int start, int end)
 {
 	//Obtain sequential result
 	const int number_of_rows = result.size(); //Number of SMs on the GPU used for computation
 	size_t sources_to_store = (g_h.n < number_of_rows) ? g_h.n - start : number_of_rows;
 	std::vector< std::vector<int> > expected(sources_to_store);
-	std::vector< std::vector<unsigned long long> > paths(sources_to_store);
+	std::vector< std::vector<float> > delta(sources_to_store); //double?
 	std::vector<int> sources(sources_to_store);
 	if(g_h.n < number_of_rows)
 	{
@@ -65,19 +84,29 @@ bool verify_apsp(host_graph &g_h, std::vector< std::vector<unsigned long long> >
 
 	for(unsigned i=0; i<sources_to_store; i++)
 	{
-		sequential(g_h,sources[i],expected[i],paths[i]);
+		sequential(g_h,sources[i],expected[i],delta[i]);
 	}
 
-	bool match = true;
+	//bool match = true;
 	int wrong_source;
-	int wrong_dest;
+	//int wrong_dest;
 	int wrong_source_index;
+	double rms_error = 0.0f;
+	double max_error = 0.0f;
 
         for(unsigned j=0; j<sources_to_store; j++)
         {
                 for(int i=0; i<g_h.n; i++)
                 {
-                        if(paths[j][i] != result[j][i])
+			double current_error = abs(delta[j][i] - result[j][i]);
+			rms_error += current_error*current_error;
+			if(current_error > max_error)
+			{
+				max_error = current_error;
+				wrong_source_index = j;
+				wrong_source = sources[j];
+			}
+                        /*if(paths[j][i] != result[j][i])
                         {
                                 match = false;
                                 wrong_source = sources[j];
@@ -87,25 +116,30 @@ bool verify_apsp(host_graph &g_h, std::vector< std::vector<unsigned long long> >
                                 std::cout << "Expected number of SPs: " << paths[j][i] << std::endl;
                                 std::cout << "Actual number of SPs: " << result[j][i] << std::endl;
                                 break;
-                        }
+                        }*/
                 }
-                if(match == false)
+                /*if(match == false)
                 {
                         break;
-                }
+                }*/
         }
+	rms_error = rms_error/(float)g_h.n;
+	rms_error = sqrt(rms_error);
+	std::cout << "RMS Error: " << rms_error << std::endl;
+	std::cout << "Maximum Error: " << max_error << std::endl;
 
-        if(match == false)
+        if(max_error > 1.0f)
         {
+		std::cout << "Source with maximum error: " << wrong_source << std::endl;
                 for(int i=0; i<g_h.n; i++)
                 {
                         if(i == 0)
                         {
-                                std::cout << "Expected = [" << paths[wrong_source_index][i];
+                                std::cout << "Expected = [" << delta[wrong_source_index][i];
                         }
                         else
                         {
-                                std::cout << "," << paths[wrong_source_index][i];
+                                std::cout << "," << delta[wrong_source_index][i];
                         }
                 }
                 std::cout << "]" << std::endl;
@@ -123,8 +157,6 @@ bool verify_apsp(host_graph &g_h, std::vector< std::vector<unsigned long long> >
                 }
                 std::cout << "]" << std::endl;
         }
-
-	return match;
 }
 
 int main(int argc, char **argv)
@@ -152,14 +184,10 @@ int main(int argc, char **argv)
 	start = 0; 
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 	
-	std::vector< std::vector<unsigned long long> > result = betweenness_centrality_setup(g_d,start,end);
+	std::vector< std::vector<float> > result = betweenness_centrality_setup(g_d,start,end);
 	if(op.verify)
 	{
-		bool res = verify_apsp(g_h,result,start,end);
-		if(res)
-		{	
-			std::cout << "Test passed." << std::endl;
-		}
+		verify_delta(g_h,result,start,end);
 	}
 
 	return 0;
