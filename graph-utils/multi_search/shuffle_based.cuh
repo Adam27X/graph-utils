@@ -40,8 +40,8 @@ __device__ __forceinline__ T* get_row(T* data, size_t p)
 }
 
 // Can Lambda Expressions be leveraged here? Yes. The core function needs to be a __device__ function and then its uses can all be global functions (the multi_search global function will be mostly empty)
-template <class EndFunc, class InitFunc, class UpdateFunc>
-__device__ void multi_search(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end, EndFunc getMax, InitFunc initLocal, UpdateFunc updateSigma)
+template <class F1, class F2, class F3, class F4, class F5, class F6, class F7>
+__device__ void multi_search(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end, F1 getMax, F2 initLocal, F3 updateSigma, F4 initStack, F5 insertStack, F6 updateEndpoints, F7 dependencyAccum)
 {
         int j = threadIdx.x;
         int lane_id = getLaneId();
@@ -50,16 +50,13 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 
         if(j == 0)
         {
-                //Q_row = (int*)((char*)Q + blockIdx.x*p.Q);
 		Q_row = get_row(Q,p.Q);
-                //Q2_row = (int*)((char*)Q2 + blockIdx.x*p.Q2);
 		Q2_row = get_row(Q2,p.Q2);
         }
         __syncthreads();
 
         for(int i=blockIdx.x+start; i<end; i+=gridDim.x)
         {
-                //int *d_row = (int*)((char*)d + blockIdx.x*p.d);
 		int *d_row = get_row(d,p.d);
                 for(int k=threadIdx.x; k<n; k+=blockDim.x)
                 {
@@ -83,6 +80,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                         Q_row[0] = i;
                         Q_len = 1;
                         Q2_len = 0;
+			initStack(i);
                 }
                 __syncthreads();
 
@@ -175,17 +173,21 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                                 for(int kk=threadIdx.x; kk<Q2_len; kk+=blockDim.x)
                                 {
                                         Q_row[kk] = Q2_row[kk];
+					insertStack(Q2_row,kk);
                                 }
                                 __syncthreads();
 
                                 if(j==0)
                                 {
+					updateEndpoints(Q2_len);
                                         Q_len = Q2_len;
                                         Q2_len = 0;
                                 }
                                 __syncthreads();
                         }
                 }
+
+		dependencyAccum(d_row,i,j,lane_id);
         }
 }
 

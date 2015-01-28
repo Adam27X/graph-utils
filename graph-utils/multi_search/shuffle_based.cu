@@ -45,8 +45,10 @@ __global__ void multi_search_shuffle_based(const int *R, const int *C, const int
 {
         auto null_lamb_1 = [](int){};
 	auto null_lamb_2 = [](int,int){};
-	auto null_lamb_3 = [](int*,int,int){};
-        multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,null_lamb_2,null_lamb_3);
+	auto null_lamb_3 = [](int*,int){};
+	auto null_lamb_4 = [](int*,int,int){};
+	auto null_lamb_5 = [](int*,int,int,int){};
+        multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,null_lamb_2,null_lamb_4,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
 __global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, int *max, const pitch p, const int start, const int end)
@@ -59,10 +61,13 @@ __global__ void diameter_sampling(const int *R, const int *C, const int n, int *
                 }
         };
 
-	auto null_lamb_1 = [](int,int){};
-	auto null_lamb_2 = [](int*,int,int){};
+	auto null_lamb_1 = [](int){};
+	auto null_lamb_2 = [](int,int){};
+	auto null_lamb_3 = [](int*,int){};
+	auto null_lamb_4 = [](int*,int,int){};
+	auto null_lamb_5 = [](int*,int,int,int){};
 
-        multi_search(R,C,n,d,Q,Q2,p,start,end,max_lamb,null_lamb_1,null_lamb_2);
+        multi_search(R,C,n,d,Q,Q2,p,start,end,max_lamb,null_lamb_2,null_lamb_4,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
 __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, int *Q, int *Q2, const pitch p, const int start, const int end)
@@ -91,16 +96,21 @@ __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n
 		}
 	};
 
-	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb,init_sigma_row,update_sigma_row);
+	auto null_lamb_1 = [](int){};
+	auto null_lamb_2 = [](int,int){};
+	auto null_lamb_3 = [](int*,int){};
+	auto null_lamb_4 = [](int*,int,int){};
+	auto null_lamb_5 = [](int*,int,int,int){};
+
+	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_row,update_sigma_row,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
-//TODO: Make sure bc is memset to 0 before calling this function
 __global__ void betweenness_centrality(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end)
 {
-	auto init_sigma_delta = [p,sigma,delta] (int k, int i)
+	auto init_sigma_delta = [p,sigma,delta,bc] (int k, int i)
 	{
-		unsigned long long *sigma_row = (unsigned long long*)((char*)sigma + blockIdx.x*p.sigma);
-		float *delta_row = (float *)((char*)delta + blockIdx.x*p.delta);
+		auto sigma_row = get_row(sigma,p.sigma); //In theory this needs to be called every iteration on i if we're going to store all of the results
+		auto delta_row = get_row(delta,p.delta);
 		if(k == i)
 		{
 			sigma_row[k] = 1;
@@ -110,14 +120,143 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int n, 
 			sigma_row[k] = 0;
 		}
 		delta_row[k] = 0;
+		bc[k] = 0;
 	};
 
 	__shared__ int S_len;
 	__shared__ int endpoints_len;
 	__shared__ int current_depth;
-	auto init_S_endpoints = [p,S,endpoints,S_len,endpoints_len] ()
+	auto init_S_endpoints = [p,S,endpoints,&S_len,&endpoints_len] (int i)
 	{
-		int *S_row = (int*)((char*)S + blockIdx.x*p.S);
+		auto S_row = get_row(S,p.S);
+		auto endpoints_row = get_row(endpoints,p.endpoints);
+		S_row[0] = i;
+		S_len = 1;
+		endpoints_row[0] = 0;
+		endpoints_row[1] = 1;
+		endpoints_len = 2;
 	};
 
+	auto update_sigma_row = [sigma,p] (int *d_row, int v, int w)
+	{
+		if(d_row[w] == (d_row[v]+1))
+		{
+			auto sigma_row = get_row(sigma,p.sigma); //In theory this needs to be called every iteration on i if we're going to store all of the results
+			atomicAdd(&sigma_row[w],sigma_row[v]);
+		}
+	};
+
+	auto insert_stack = [p,S,&S_len] (int *Q2_row, int kk)
+	{
+		auto S_row = get_row(S,p.S);
+		S_row[kk+S_len] = Q2_row[kk];
+	};
+
+	auto update_endpoints = [p,&endpoints_len,&S_len,endpoints] (int Q2_len)
+	{
+		auto endpoints_row = get_row(endpoints,p.endpoints);
+		endpoints_row[endpoints_len] = endpoints_row[endpoints_len-1] + Q2_len;
+		endpoints_len++;
+		S_len += Q2_len;
+	};
+
+	auto dependency_accumulation = [p,&S_len,&endpoints_len,&current_depth,S,endpoints,d,sigma,delta,bc,R,C,n] (int *d_row, int i, int j, int lane_id)
+	{
+		//Set current depth
+		auto S_row = get_row(S,p.S);
+		auto sigma_row = get_row(sigma,p.sigma);
+		auto delta_row = get_row(delta,p.delta);
+		auto endpoints_row = get_row(endpoints,p.endpoints);
+		if(j == 0)
+		{
+			current_depth = d_row[S_row[S_len-1]] - 1;
+		}	
+		__syncthreads();
+
+		while(current_depth > 0)
+		{
+			int w, r, r_end;
+			int k = threadIdx.x;
+			int depth_size = endpoints_row[current_depth+1]-endpoints_row[current_depth];
+
+			if(k < depth_size)
+			{
+				w = S_row[k];
+				r = R[w];
+				r_end = R[w+1];
+			}
+			else
+			{
+				w = -1;
+				r = 0;
+				r_end = 0;
+			}
+
+			while(1)
+			{
+				while(__any(r_end-r))
+				{
+					//Vie for control of warp
+					int winner = race_and_resolve_warp(r_end-r);
+
+					//Strip mine winner's adjlist
+					int r_gather = __shfl(r,winner) + lane_id;
+					int r_gather_end = __shfl(r_end,winner);
+					int w_new = __shfl(w,winner);
+					float sw = sigma_row[w];
+					float dsw = 0;
+					while(r_gather < r_gather_end)
+					{
+						int v = C[r_gather];
+						if(d_row[v] == (d_row[w_new]+1))
+						{
+							dsw += (sw/sigma_row[v])*(1.0f+delta_row[v]);
+						}
+						r_gather += WARP_SIZE;
+					}
+					atomicAdd(&delta_row[w_new],dsw);
+
+					if(winner == lane_id) //Same thread cannot win twice
+					{
+						r = 0;
+						r_end = 0;
+					}
+				}
+
+				k+=blockDim.x;
+				if(k < depth_size)
+				{
+					w = S_row[k];
+					r = R[w];
+					r_end = R[w+1];
+				}
+				else
+				{
+					w = -1;
+					r = 0;
+					r_end = 0;
+				}
+
+				if((k-threadIdx.x) >= depth_size) //If thread 0 has no work, the entire block is done
+				{
+					break;
+				}
+			}
+			__syncthreads();
+			if(j == 0)
+			{
+				current_depth--;
+			}
+			__syncthreads();
+		}
+
+		for(int kk=threadIdx.x; kk<n; kk+=blockDim.x)
+		{
+			atomicAdd(&bc[kk],delta_row[kk]); //delta_row[i] is guaranteed to be zero. 
+		}
+	};
+        
+	auto null_lamb_1 = [](int){}; //getMax
+
+	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation);
 }

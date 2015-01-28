@@ -97,11 +97,15 @@ int main(int argc, char **argv)
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 	
 	int result = diameter_sampling_setup(g_d,start,end);
-	//bool pass = verify_diameter(g_h,result,start,end);
-	//if(pass)
+	if(op.verify)
 	{
-		std::cout << "Diameter: " << result << std::endl;
+		bool pass = verify_diameter(g_h,result,start,end);
+		if(pass)
+		{
+			std::cout << "Test passed." << std::endl;
+		}
 	}
+	std::cout << "Diameter: " << result << std::endl;
 
 	return 0;
 }
