@@ -174,8 +174,8 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int n, 
 			current_depth = d_row[S_row[S_len-1]] - 1;
 		}	
 		__syncthreads();
-
-		while(current_depth > 0)
+		
+		while(current_depth > 0) 
 		{
 			int w, r, r_end;
 			int k = threadIdx.x;
@@ -183,7 +183,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int n, 
 
 			if(k < depth_size)
 			{
-				w = S_row[k];
+				w = S_row[k+endpoints_row[current_depth]];
 				r = R[w];
 				r_end = R[w+1];
 			}
@@ -205,14 +205,14 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int n, 
 					int r_gather = __shfl(r,winner) + lane_id;
 					int r_gather_end = __shfl(r_end,winner);
 					int w_new = __shfl(w,winner);
-					float sw = sigma_row[w];
-					float dsw = 0;
+					unsigned long long sw = sigma_row[w_new];
+					float dsw = 0.0;
 					while(r_gather < r_gather_end)
 					{
 						int v = C[r_gather];
 						if(d_row[v] == (d_row[w_new]+1))
 						{
-							dsw += (sw/sigma_row[v])*(1.0f+delta_row[v]);
+							dsw += (sw/(float)sigma_row[v])*(1.0f+delta_row[v]);
 						}
 						r_gather += WARP_SIZE;
 					}
@@ -228,7 +228,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int n, 
 				k+=blockDim.x;
 				if(k < depth_size)
 				{
-					w = S_row[k];
+					w = S_row[k+endpoints_row[current_depth]];
 					r = R[w];
 					r_end = R[w+1];
 				}

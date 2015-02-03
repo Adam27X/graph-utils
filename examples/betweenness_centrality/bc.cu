@@ -47,7 +47,7 @@ void sequential(host_graph &g_h, int source, std::vector<int> &expected, std::ve
 		for(int k=g_h.R[w]; k<g_h.R[w+1]; k++)
 		{
 			int v = g_h.C[k];
-			if(expected[v] == (expected[w]-1))
+			if((expected[v] == (expected[w]-1)) && (v != source))
 			{
 				delta[v] += (paths[v]/(float)paths[w])*(1.0f+delta[w]);
 			}
@@ -106,22 +106,7 @@ void verify_delta(host_graph &g_h, std::vector< std::vector<float> > &result, in
 				wrong_source_index = j;
 				wrong_source = sources[j];
 			}
-                        /*if(paths[j][i] != result[j][i])
-                        {
-                                match = false;
-                                wrong_source = sources[j];
-                               	wrong_source_index = j;
-                                wrong_dest = i;
-                                std::cout << "Mismatch for source " << wrong_source << " and dest " << wrong_dest << std::endl;
-                                std::cout << "Expected number of SPs: " << paths[j][i] << std::endl;
-                                std::cout << "Actual number of SPs: " << result[j][i] << std::endl;
-                                break;
-                        }*/
                 }
-                /*if(match == false)
-                {
-                        break;
-                }*/
         }
 	rms_error = rms_error/(float)g_h.n;
 	rms_error = sqrt(rms_error);
