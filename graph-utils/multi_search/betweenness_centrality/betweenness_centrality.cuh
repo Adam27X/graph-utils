@@ -10,4 +10,4 @@
 #include "../../../util_device.cuh"
 #include "../../../device_graph.h"
 
-std::vector< std::vector<float> > betweenness_centrality_setup(const device_graph &g, int start, int end);
+void betweenness_centrality_setup(const device_graph &g, int start, int end, std::vector< std::vector<float> > &delta_h);

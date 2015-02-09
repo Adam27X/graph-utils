@@ -1,7 +1,7 @@
 #include "betweenness_centrality.cuh"
 
 //TODO: Return reference
-std::vector< std::vector<float> > betweenness_centrality_setup(const device_graph &g, int start, int end)
+void betweenness_centrality_setup(const device_graph &g, int start, int end, std::vector< std::vector<float> > &delta_h)
 {
 	//For now, use "standard" grid/block sizes. These can be tuned later on.
 	dim3 dimGrid, dimBlock;
@@ -32,7 +32,7 @@ std::vector< std::vector<float> > betweenness_centrality_setup(const device_grap
 	betweenness_centrality<<<dimGrid,1024>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,sigma_d,delta_d,thrust::raw_pointer_cast(bc_d.data()),Q_d,Q2_d,S_d,endpoints_d,p,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
-        std::vector< std::vector<float> > delta_h;
+        //std::vector< std::vector<float> > delta_h;
         transfer_result(g,delta_d,p.delta,sources_to_store,delta_h);
 
 	//Free algorithm-specific memory
@@ -46,7 +46,5 @@ std::vector< std::vector<float> > betweenness_centrality_setup(const device_grap
 	float time = end_clock(start_event,end_event);
 
 	std::cout << "Time for shuffle-based BC: " << std::setprecision(9) << time << " s" << std::endl;
-
-	return delta_h;
 }
 

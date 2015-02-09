@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <iostream>
 
+#include <cub/cub.cuh>
+
 #include "../../parse.h"
 #include "../../device_graph.h"
 #include "../../util_device.cuh"
@@ -39,7 +41,6 @@ __device__ __forceinline__ T* get_row(T* data, size_t p)
 	return (T*)((char*)data + blockIdx.x*p);	
 }
 
-// Can Lambda Expressions be leveraged here? Yes. The core function needs to be a __device__ function and then its uses can all be global functions (the multi_search global function will be mostly empty)
 template <class F1, class F2, class F3, class F4, class F5, class F6, class F7>
 __device__ void multi_search(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end, F1 getMax, F2 initLocal, F3 updateSigma, F4 initStack, F5 insertStack, F6 updateEndpoints, F7 dependencyAccum)
 {

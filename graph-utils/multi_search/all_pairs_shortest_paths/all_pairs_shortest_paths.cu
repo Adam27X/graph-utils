@@ -1,5 +1,6 @@
 #include "all_pairs_shortest_paths.cuh"
 
+//TODO: Pass in a reference vector and return void
 std::vector< std::vector<unsigned long long> > all_pairs_shortest_paths_setup(const device_graph &g, int start, int end)
 {
 	//For now, use "standard" grid/block sizes. These can be tuned later on.

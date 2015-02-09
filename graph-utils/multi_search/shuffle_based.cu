@@ -1,6 +1,7 @@
 #include "shuffle_based.cuh"
 #include "common.cuh"
 
+//TODO: Pass in a reference vector and return void
 std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_graph &g, int start, int end)
 {
 	//For now, use "standard" grid/block sizes. These can be tuned later on.
@@ -216,7 +217,15 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int n, 
 						}
 						r_gather += WARP_SIZE;
 					}
-					atomicAdd(&delta_row[w_new],dsw);
+
+					typedef cub::WarpReduce<float> WarpReduceFloat;
+					__shared__ typename WarpReduceFloat::TempStorage temp_storage[32]; //Temporary storage for each warp
+					float dsw_agg = WarpReduceFloat(temp_storage[threadIdx.x/32]).Sum(dsw);
+					if(getLaneId() == 0)
+					{
+						delta_row[w_new] += dsw_agg;
+					}
+					//atomicAdd(&delta_row[w_new],dsw); //Is this killing us?
 
 					if(winner == lane_id) //Same thread cannot win twice
 					{

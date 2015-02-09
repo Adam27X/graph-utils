@@ -168,8 +168,9 @@ int main(int argc, char **argv)
 	int start,end;
 	start = 0; 
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
-	
-	std::vector< std::vector<float> > result = betweenness_centrality_setup(g_d,start,end);
+
+	std::vector< std::vector<float> > result;	
+	betweenness_centrality_setup(g_d,start,end,result);
 	if(op.verify)
 	{
 		verify_delta(g_h,result,start,end);
