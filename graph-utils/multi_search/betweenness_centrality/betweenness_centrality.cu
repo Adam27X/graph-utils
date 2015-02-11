@@ -29,7 +29,7 @@ void betweenness_centrality_setup(const device_graph &g, int start, int end, std
         size_t GPU_memory_requirement = sizeof(int)*g.n*sources_to_store + 4*sizeof(int)*g.n*dimGrid.x + sizeof(int)*(g.n+1) + sizeof(int)*(g.m) + sizeof(unsigned long long)*g.n*sources_to_store + sizeof(float)*g.n*sources_to_store + sizeof(float)*g.n;
         std::cout << "BC memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
 
-	betweenness_centrality<<<dimGrid,1024>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,sigma_d,delta_d,thrust::raw_pointer_cast(bc_d.data()),Q_d,Q2_d,S_d,endpoints_d,p,start,end);
+	betweenness_centrality<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),thrust::raw_pointer_cast(g.F.data()),g.n,g.m,d_d,sigma_d,delta_d,thrust::raw_pointer_cast(bc_d.data()),Q_d,Q2_d,S_d,endpoints_d,p,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
         //std::vector< std::vector<float> > delta_h;

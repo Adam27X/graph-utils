@@ -41,6 +41,7 @@ __device__ __forceinline__ T* get_row(T* data, size_t p)
 	return (T*)((char*)data + blockIdx.x*p);	
 }
 
+//TODO: Generalize the beginning and endroutines for more flexibility. Push initialization into lambdas and, if necessary, reuse the lambdas
 template <class F1, class F2, class F3, class F4, class F5, class F6, class F7>
 __device__ void multi_search(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end, F1 getMax, F2 initLocal, F3 updateSigma, F4 initStack, F5 insertStack, F6 updateEndpoints, F7 dependencyAccum)
 {
@@ -56,6 +57,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
         }
         __syncthreads();
 
+	//TODO: Push up declarations of variables and combine initLocal and initStack
         for(int i=blockIdx.x+start; i<end; i+=gridDim.x)
         {
 		int *d_row = get_row(d,p.d);
@@ -123,6 +125,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 						//atomicCAS is necessary here for appropriately computing the number of shortest paths
 						//this restriction can be lifted if the calculation of d is all that matters. 
 						//This discrepancy can be handled via lambdas, but is of low priority as of right now.
+						//TODO: Make this entire section its own function call so atomics are only used where necessary
 						if(atomicCAS(&d_row[w],INT_MAX,d_row[v_new]+1) == INT_MAX)
                                                 {
                                                         int t = atomicAdd(&Q2_len,1);
@@ -160,13 +163,18 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                                 }
                         }
                         __syncthreads();
-                                        
+                                       
+		        //TODO: Combine getMax, insertStack, and updateEndpoints into one functon that resets the queue	
                         if(Q2_len == 0)
                         {
 				for(int kk=threadIdx.x; kk<n; kk+=blockDim.x)
 				{
 					getMax(d_row[kk]);
 				}
+				/*if(i == 8 && j<32)
+				{
+					printf("thread %d done with sp calc \n",j);
+				}*/
                                 break;
                         }
                         else
@@ -188,6 +196,11 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                         }
                 }
 
+		__syncthreads();
+		/*if(i == 8 && j<32)
+		{
+			printf("thread %d (lane id %d) calling dependencyAccum() \n",j,lane_id);
+		}*/
 		dependencyAccum(d_row,i,j,lane_id);
         }
 }
@@ -195,4 +208,4 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 __global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end);
 __global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, int *max, const pitch p, const int start, const int end);
 __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, int *Q, int *Q2, const pitch p, const int start, const int end);
-__global__ void betweenness_centrality(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end);
+__global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end);

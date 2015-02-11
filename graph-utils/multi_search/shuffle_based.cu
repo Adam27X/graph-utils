@@ -41,6 +41,8 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 	return d_host_vector;
 }
 
+
+//TODO: Move lambdas to a global space so that they can be reused (and rename them appropriately)
 //Wrappers
 __global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end)
 {
@@ -106,7 +108,7 @@ __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n
 	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_row,update_sigma_row,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
-__global__ void betweenness_centrality(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end)
+__global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end)
 {
 	auto init_sigma_delta = [p,sigma,delta,bc] (int k, int i)
 	{
@@ -127,8 +129,8 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int n, 
 	__shared__ int S_len;
 	__shared__ int endpoints_len;
 	__shared__ int current_depth;
-	__shared__ int* S_row;
-	__shared__ int* endpoints_row;
+	__shared__ int *S_row;
+	__shared__ int *endpoints_row;
 	auto init_S_endpoints = [p,S,endpoints,&S_len,&endpoints_len,&S_row,&endpoints_row] (int i)
 	{
 		S_row = get_row(S,p.S);
@@ -266,8 +268,97 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int n, 
 			atomicAdd(&bc[kk],delta_row[kk]); //delta_row[i] is guaranteed to be zero. 
 		}
 	};
+
+	//See if the old method is preferential for the dependency accumulation
+	auto dependency_accumulation_work_eff = [p,&S_len,&endpoints_len,&current_depth,S,endpoints,d,sigma,delta,bc,R,C,n] (int *d_row, int i, int j, int lane_id)
+	{
+		//Set current depth
+		auto S_row = get_row(S,p.S);
+		auto sigma_row = get_row(sigma,p.sigma);
+		auto delta_row = get_row(delta,p.delta);
+		auto endpoints_row = get_row(endpoints,p.endpoints);
+		if(j == 0)
+		{
+			current_depth = d_row[S_row[S_len-1]] - 1;
+		}
+		__syncthreads();
+
+		while(current_depth > 0)
+		{
+			for(int kk=threadIdx.x+endpoints_row[current_depth]; kk<endpoints_row[current_depth+1]; kk+=blockDim.x)
+			{
+				int w = S_row[kk];
+				float dsw = 0;
+				float sw = (float)sigma_row[w];
+				for(int z=R[w]; z<R[w+1]; z++)
+				{
+					int v = C[z];
+					if(d_row[v] == (d_row[w]+1))
+					{	
+						dsw += (sw/(float)sigma_row[v])*(1.0f+delta_row[v]);
+					}
+				}
+				delta_row[w] = dsw;	
+			}
+			__syncthreads();
+			if(j == 0)
+			{
+				current_depth--;
+			}
+			__syncthreads();
+		}
+
+		for(int kk=threadIdx.x; kk<n; kk+=blockDim.x)
+		{
+			atomicAdd(&bc[kk],delta_row[kk]);
+		}
+	};
+
+	//FIXME: This results in a very strange error where some threads of a warp seem to execute this lambda before other threads in a warp, despite the use of syncthreads.
+	auto dependency_accumulation_edge_par = [p,&S_len,&endpoints_len,&current_depth,S,endpoints,d,sigma,delta,bc,R,C,F,n,m] (int *d_row, int i, int j, int lane_id)
+	{
+		//Set current depth
+		auto S_row = get_row(S,p.S);
+		auto sigma_row = get_row(sigma,p.sigma);
+		auto delta_row = get_row(delta,p.delta);
+		auto endpoints_row = get_row(endpoints,p.endpoints);
+		if(j == 0)
+		{
+			current_depth = d_row[S_row[S_len-1]] - 1;
+		}
+		__syncthreads();
+
+		while(current_depth > 0)
+		{
+			for(int kk=threadIdx.x; kk<m; kk+=blockDim.x)
+			{
+				int w = F[kk];
+				if(d_row[w] == current_depth)
+				{
+					int v = C[kk];
+					if(d_row[v] == (current_depth+1))
+					{
+						float sw = (float)sigma_row[w];
+						float change = (sw/(float)sigma_row[v])*(1.0f+delta_row[v]);
+						atomicAdd(&delta_row[w],change);
+					}
+				}
+			}
+			__syncthreads();
+			if(j == 0)
+			{
+				current_depth--;
+			}
+			__syncthreads();
+		}
+
+		for(int kk=threadIdx.x; kk<n; kk+=blockDim.x)
+		{
+			atomicAdd(&bc[kk],delta_row[kk]);
+		}
+	};
         
 	auto null_lamb_1 = [](int){}; //getMax
 
-	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation);
+	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_edge_par);
 }
