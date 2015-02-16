@@ -360,5 +360,5 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
         
 	auto null_lamb_1 = [](int){}; //getMax
 
-	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_edge_par);
+	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
 }
