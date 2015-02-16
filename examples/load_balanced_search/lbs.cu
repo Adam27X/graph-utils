@@ -13,7 +13,7 @@
 #include "../../util_device.cuh"
 #include "../../graph-utils/load_balanced_search.cuh"
 
-#define VERTEX_FRONTIER 30
+#define VERTEX_FRONTIER 1000
 
 void load_balance_search(int num_edges, const std::vector<int> &scanned_edges, std::vector<int> &result)
 {
@@ -35,7 +35,7 @@ int main()
         std::vector<int> counts(VERTEX_FRONTIER), counts_scan(VERTEX_FRONTIER), sources, lbs;
         for(unsigned i=0; i<counts.size(); i++)
         {
-                counts[i] = rand() % 6; //0 through 5 work-items
+                counts[i] = rand() % 100; //0 through (k-1) work-items
         }
         std::cout << "Number of work items: " << std::endl;
         std::copy(counts.begin(),counts.end(),std::ostream_iterator<int>(std::cout," "));
@@ -52,12 +52,12 @@ int main()
         lbs.resize(edges);
 
         load_balance_search(edges,counts_scan,lbs);
-        std::cout << "Edges to be traversed: " << std::endl;
+        /*std::cout << "Edges to be traversed: " << std::endl;
         for(unsigned i=0; i<lbs.size(); i++)
         {
                 std::cout << "(" << lbs[i] << "," << i - counts_scan[lbs[i]] << ")" << " ";
         }
-        std::cout << std::endl;
+        std::cout << std::endl;*/
 
         std::cout << std::endl << "Repeating on the GPU: " << std::endl;
         thrust::device_vector<int> counts_d = counts;
@@ -75,17 +75,28 @@ int main()
         thrust::host_vector<int> result_h = result_d;
         thrust::host_vector<int> counts_scan_h = counts_scan_d;
 
-        std::cout << "Edges to be traversed: " << std::endl;
+        /*std::cout << "Edges to be traversed: " << std::endl;
         for(unsigned i=0; i<result_h.size(); i++)
         {
                 std::cout << "(" << result_h[i] << "," << i - counts_scan_h[result_h[i]] << ")" << " ";
         }
-        std::cout << std::endl;
+        std::cout << std::endl;*/
 
 	std::cout << std::endl;
+
+	if(!thrust::equal(counts_scan.begin(),counts_scan.end(),counts_scan_h.begin()))
+	{
+		std::cout << "Scan failed." << std::endl;
+		thrust::copy(counts_scan_h.begin(),counts_scan_h.end(),std::ostream_iterator<int>(std::cout," " ));
+		std::cout << std::endl;
+	}
 	thrust::equal(lbs.begin(),lbs.end(),result_h.begin()) ? std::cout << "Test passed." : std::cout << "Test failed.";
 	std::cout << std::endl;
 	std::cout << "Time for Load-Balancing Search: " << std::setprecision(9) << time << " s" << std::endl;
+
+	int bytes = sizeof(int)*edges_d[0];
+	double bandwidth = bytes/time;
+	std::cout << "Memory Bandwidth: " << bandwidth/(1e9) << " GB/s" << std::endl;
 
         return 0;
 }
