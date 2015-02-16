@@ -35,16 +35,16 @@ int main()
         std::vector<int> counts(VERTEX_FRONTIER), counts_scan(VERTEX_FRONTIER), sources, lbs;
         for(unsigned i=0; i<counts.size(); i++)
         {
-                counts[i] = rand() % 100; //0 through (k-1) work-items
+                counts[i] = rand() % 100000; //0 through (k-1) work-items
         }
-        std::cout << "Number of work items: " << std::endl;
+        /*std::cout << "Number of work items: " << std::endl;
         std::copy(counts.begin(),counts.end(),std::ostream_iterator<int>(std::cout," "));
-        std::cout << std::endl;
+        std::cout << std::endl;*/
 
         thrust::exclusive_scan(counts.begin(),counts.end(),counts_scan.begin());
-        std::cout << "Scanned work items: " << std::endl;
+        /*std::cout << "Scanned work items: " << std::endl;
         std::copy(counts_scan.begin(),counts_scan.end(),std::ostream_iterator<int>(std::cout," "));
-        std::cout << std::endl;
+        std::cout << std::endl;*/
 
         int edges = counts_scan[counts_scan.size()-1]+counts[counts.size()-1];
         std::cout << "Number of edges to traverse: " << edges << std::endl;
@@ -67,7 +67,7 @@ int main()
 
 	cudaEvent_t start_event, end_event;
 	start_clock(start_event,end_event);
-        extract_edges<<<1,32>>>(VERTEX_FRONTIER,thrust::raw_pointer_cast(counts_d.data()),thrust::raw_pointer_cast(counts_scan_d.data()),thrust::raw_pointer_cast(result_d.data()),thrust::raw_pointer_cast(edges_d.data()));
+        extract_edges_block<<<1,BLOCK_SIZE>>>(VERTEX_FRONTIER,thrust::raw_pointer_cast(counts_d.data()),thrust::raw_pointer_cast(counts_scan_d.data()),thrust::raw_pointer_cast(result_d.data()),thrust::raw_pointer_cast(edges_d.data()));
 	checkCudaErrors(cudaPeekAtLastError());
 	float time = end_clock(start_event,end_event);
         std::cout << "Number of edges to traverse: " << edges_d[0] << std::endl;
@@ -89,6 +89,10 @@ int main()
 		std::cout << "Scan failed." << std::endl;
 		thrust::copy(counts_scan_h.begin(),counts_scan_h.end(),std::ostream_iterator<int>(std::cout," " ));
 		std::cout << std::endl;
+	}
+	else
+	{
+		std::cout << "Scan passed." << std::endl;
 	}
 	thrust::equal(lbs.begin(),lbs.end(),result_h.begin()) ? std::cout << "Test passed." : std::cout << "Test failed.";
 	std::cout << std::endl;

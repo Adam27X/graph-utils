@@ -16,6 +16,46 @@ __device__ int __forceinline__ get_next_power_of_2(int x)
 	return x+1;
 }
 
+//Speciailized binary search for the LBS problem: We want to return the greatest index in array that is less than key
+//TODO: Default argument for low to take advantage of when the same thread processes multiple array indices?
+__device__ int binary_search(int *array, int array_size, int key, int low = 0)
+{
+	//int low = 0;
+	int high = array_size-1;
+
+	while(low <= high)
+	{
+		int mid = low + ((high - low) / 2);
+		int midVal = array[mid];
+
+		if(midVal < key)
+		{
+			low = mid + 1;
+		}
+		else if(midVal > key)
+		{
+			high = mid - 1;
+		}
+		else
+		{
+			while(mid < high)
+			{
+				if(array[mid+1] == array[mid])
+				{
+					mid++;
+				}
+				else
+				{
+					break;
+				}
+			}
+			return mid;
+		}
+	}
+
+	return high; //key not found - return the lower key since we want the greatest index *less* than the key
+}
+
 //TODO: Scale to larger sets of edges, extend to blocks, etc. 
 //More efficient for threads to process consecutive elements in results rather than stride-32 elements?
 
@@ -28,6 +68,10 @@ __device__ void load_balance_search_warp(const int vertex_frontier_size, int *ed
 	int total_edges = 0;
 	//Ensure all threads in the warp execute WarpScan and get the value of total_edges
 	int vertex_frontier_rounded = get_next_power_of_2(vertex_frontier_size);
+	if(vertex_frontier_rounded < WARP_SIZE)
+	{
+		vertex_frontier_rounded = WARP_SIZE; //Must be at least the size of the warp for the syncthreads in the next loop to work correctly
+	}
 	for(int i=getLaneId(); i<vertex_frontier_rounded; i+=WARP_SIZE) 
 	{
 		int local_count = i < vertex_frontier_size ? edge_counts[i] : 0;
@@ -45,27 +89,91 @@ __device__ void load_balance_search_warp(const int vertex_frontier_size, int *ed
 		edge_frontier_size[0] = scanned_edges[vertex_frontier_size-1]+edge_counts[vertex_frontier_size-1];
 	}
 
-        int ind = 0;
+	int ind = 0;
 	for(int i=getLaneId(); i<total_edges; i+=WARP_SIZE)
-        {
-                //better: binary search this array
-                while(i >= scanned_edges[ind])
-                {
-                        ind++;
-                }
+	{
+		while(i >= scanned_edges[ind])
+		{
+			ind++;
+		}
 		if(ind >= vertex_frontier_size) //boundary condition
 		{
 			result[i] = vertex_frontier_size-1;
 		}
 		else
 		{
-                	result[i] = ind-1;
+			result[i] = ind-1;
 		}
-        }
+	}
+
+	//This is actually way slower than the naive approach, at least for the inputs I've tested so far. Perhaps that input isn't large enough?
+	/*for(int i=getLaneId(); i<total_edges; i+=WARP_SIZE)
+        {
+		if(i != getLaneId())
+		{
+			result[i] = binary_search(scanned_edges,vertex_frontier_size,i,result[i-WARP_SIZE]);
+		}
+		else
+		{
+			result[i] = binary_search(scanned_edges,vertex_frontier_size,i);	
+		}
+        }*/
 }
 
-__global__ void extract_edges(int vertex_frontier_size, int *edge_counts, int *scanned_edges, int *result, int *edges)
+//TODO: Reorganize so that each thread has multiple items to scan at once (check occupancy for this), tuning
+__device__ void load_balance_search_block(const int vertex_frontier_size, int *edge_frontier_size, const int *edge_counts, int *scanned_edges, int *result)
+{
+	typedef cub::BlockScan<int,BLOCK_SIZE> BlockScan;
+	__shared__ typename BlockScan::TempStorage temp_storage;
+
+	int total_edges = 0;
+	//Ensure all threads in the warp execute WarpScan and get the value of total_edges
+	int vertex_frontier_rounded = get_next_power_of_2(vertex_frontier_size);
+	if(vertex_frontier_rounded < blockDim.x)
+	{
+		vertex_frontier_rounded = blockDim.x; //Must be at least the size of the warp for the syncthreads in the next loop to work correctly
+	}
+	for(int i=threadIdx.x; i<vertex_frontier_rounded; i+=blockDim.x) 
+	{
+		int local_count = i < vertex_frontier_size ? edge_counts[i] : 0;
+		int current_edges;
+		BlockScan(temp_storage).ExclusiveSum(local_count,scanned_edges[i],current_edges);
+		__syncthreads(); //Needed for reuse of WarpScan
+		if((i != threadIdx.x) && (i < vertex_frontier_size))
+		{
+			scanned_edges[i] += total_edges; //Add previous number of edges for subsequent loop iterations
+		}
+		total_edges += current_edges;
+	}
+	if(threadIdx.x == 0)
+	{
+		edge_frontier_size[0] = scanned_edges[vertex_frontier_size-1]+edge_counts[vertex_frontier_size-1];
+	}
+
+	int ind = 0;
+	for(int i=threadIdx.x; i<total_edges; i+=blockDim.x)
+	{
+		while(i >= scanned_edges[ind])
+		{
+			ind++;
+		}
+		if(ind >= vertex_frontier_size) //boundary condition
+		{
+			result[i] = vertex_frontier_size-1;
+		}
+		else
+		{
+			result[i] = ind-1;
+		}
+	}
+}
+
+__global__ void extract_edges_warp(int vertex_frontier_size, int *edge_counts, int *scanned_edges, int *result, int *edges)
 {
 	load_balance_search_warp(vertex_frontier_size,edges,edge_counts,scanned_edges,result);
 }
 
+__global__ void extract_edges_block(int vertex_frontier_size, int *edge_counts, int *scanned_edges, int *result, int *edges)
+{
+	load_balance_search_block(vertex_frontier_size,edges,edge_counts,scanned_edges,result);
+}
