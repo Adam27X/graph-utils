@@ -11,8 +11,7 @@
 
 #include "../../graph-utils/load_balanced_search.cuh"
 
-#define WARP_SIZE 32
-#define VERTEX_FRONTIER 20
+#define VERTEX_FRONTIER 30
 
 void load_balance_search(int num_edges, const std::vector<int> &scanned_edges, std::vector<int> &result)
 {
@@ -77,6 +76,9 @@ int main()
         }
         std::cout << std::endl;
 
+	std::cout << std::endl;
+	thrust::equal(lbs.begin(),lbs.end(),result_h.begin()) ? std::cout << "Test passed." : std::cout << "Test failed.";
+	std::cout << std::endl;
 
         return 0;
 }
