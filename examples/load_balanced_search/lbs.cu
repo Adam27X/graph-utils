@@ -3,12 +3,14 @@
 #include <cstdlib>
 #include <algorithm>
 #include <iterator>
+#include <iomanip>
 
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include <thrust/scan.h>
 #include <cub/warp/warp_scan.cuh>
 
+#include "../../util_device.cuh"
 #include "../../graph-utils/load_balanced_search.cuh"
 
 #define VERTEX_FRONTIER 30
@@ -63,7 +65,11 @@ int main()
         thrust::device_vector<int> result_d(edges); //Have to assume O(m) space here for a graph
         thrust::device_vector<int> edges_d(1,0);
 
+	cudaEvent_t start_event, end_event;
+	start_clock(start_event,end_event);
         extract_edges<<<1,32>>>(VERTEX_FRONTIER,thrust::raw_pointer_cast(counts_d.data()),thrust::raw_pointer_cast(counts_scan_d.data()),thrust::raw_pointer_cast(result_d.data()),thrust::raw_pointer_cast(edges_d.data()));
+	checkCudaErrors(cudaPeekAtLastError());
+	float time = end_clock(start_event,end_event);
         std::cout << "Number of edges to traverse: " << edges_d[0] << std::endl;
 
         thrust::host_vector<int> result_h = result_d;
@@ -79,6 +85,7 @@ int main()
 	std::cout << std::endl;
 	thrust::equal(lbs.begin(),lbs.end(),result_h.begin()) ? std::cout << "Test passed." : std::cout << "Test failed.";
 	std::cout << std::endl;
+	std::cout << "Time for Load-Balancing Search: " << std::setprecision(9) << time << " s" << std::endl;
 
         return 0;
 }

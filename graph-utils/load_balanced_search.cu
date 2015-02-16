@@ -4,6 +4,7 @@
 //More efficient for threads to process consecutive elements in results rather than stride-32 elements?
 
 //Use a warp to extract edges that need to be traversed
+//Does the edge frontier size need to be stored to global memory? It can be obtained directly from the scan and edge counts? If it doesn't affect performance much then it's worth keeping I guess.
 __device__ void load_balance_search_warp(int vertex_frontier_size, int *edge_frontier_size, int *edge_counts, int *scanned_edges, int *result)
 {
 	__shared__ typename cub::WarpScan<int>::TempStorage temp_storage;
