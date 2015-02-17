@@ -13,7 +13,7 @@
 #include "../../util_device.cuh"
 #include "../../graph-utils/load_balanced_search.cuh"
 
-#define VERTEX_FRONTIER 1000
+#define VERTEX_FRONTIER 100000
 
 void load_balance_search(int num_edges, const std::vector<int> &scanned_edges, std::vector<int> &result)
 {
@@ -35,7 +35,7 @@ int main()
         std::vector<int> counts(VERTEX_FRONTIER), counts_scan(VERTEX_FRONTIER), sources, lbs;
         for(unsigned i=0; i<counts.size(); i++)
         {
-                counts[i] = rand() % 100000; //0 through (k-1) work-items
+                counts[i] = rand() % 20; //0 through (k-1) work-items
         }
         /*std::cout << "Number of work items: " << std::endl;
         std::copy(counts.begin(),counts.end(),std::ostream_iterator<int>(std::cout," "));

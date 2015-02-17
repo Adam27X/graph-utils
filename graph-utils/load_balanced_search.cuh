@@ -5,6 +5,7 @@
 
 #define WARP_SIZE 32
 const int BLOCK_SIZE = 1024;
+const int ITEMS_PER_THREAD = 2;
 
 __device__ void load_balance_search_warp(int num_edges, int *scanned_edges, int *result);
 __device__ void load_balance_search_block(int num_edges, int *scanned_edges, int *result);

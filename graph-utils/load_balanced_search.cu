@@ -135,13 +135,29 @@ __device__ void load_balance_search_block(const int vertex_frontier_size, int *e
 	}
 	for(int i=threadIdx.x; i<vertex_frontier_rounded; i+=blockDim.x) 
 	{
-		int local_count = i < vertex_frontier_size ? edge_counts[i] : 0;
-		int current_edges;
-		BlockScan(temp_storage).ExclusiveSum(local_count,scanned_edges[i],current_edges);
-		__syncthreads(); //Needed for reuse of WarpScan
-		if((i != threadIdx.x) && (i < vertex_frontier_size))
+		int local_count[ITEMS_PER_THREAD];
+		for(int j=0; j<ITEMS_PER_THREAD; j++)
 		{
-			scanned_edges[i] += total_edges; //Add previous number of edges for subsequent loop iterations
+			if((ITEMS_PER_THREAD*i)+j < vertex_frontier_size)
+			{
+				local_count[j] = edge_counts[ITEMS_PER_THREAD*i+j];
+			}
+			else
+			{
+				local_count[j] = 0;
+			}
+		}
+
+		int current_edges;
+		BlockScan(temp_storage).ExclusiveSum(local_count,local_count,current_edges);
+		__syncthreads(); //Needed for reuse of WarpScan
+		
+		for(int j=0; j<ITEMS_PER_THREAD; j++)
+		{
+			if((ITEMS_PER_THREAD*i)+j < vertex_frontier_size)
+			{
+				scanned_edges[ITEMS_PER_THREAD*i+j] = local_count[j] + total_edges;
+			}
 		}
 		total_edges += current_edges;
 	}
@@ -151,6 +167,7 @@ __device__ void load_balance_search_block(const int vertex_frontier_size, int *e
 	}
 
 	int ind = 0;
+	//TODO: Try an items per thread approach here too
 	for(int i=threadIdx.x; i<total_edges; i+=blockDim.x)
 	{
 		while(i >= scanned_edges[ind])
