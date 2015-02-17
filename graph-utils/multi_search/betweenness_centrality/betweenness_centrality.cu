@@ -26,16 +26,27 @@ void betweenness_centrality_setup(const device_graph &g, int start, int end, std
 	checkCudaErrors(cudaMallocPitch((void**)&endpoints_d,&p.endpoints,sizeof(int)*g.n,dimGrid.x));
 	thrust::device_vector<float> bc_d(g.n,0);
 
-        size_t GPU_memory_requirement = sizeof(int)*g.n*sources_to_store + 4*sizeof(int)*g.n*dimGrid.x + sizeof(int)*(g.n+1) + sizeof(int)*(g.m) + sizeof(unsigned long long)*g.n*sources_to_store + sizeof(float)*g.n*sources_to_store + sizeof(float)*g.n;
+	//Memory specific to Load-Balancing Search
+	int *edge_counts_d, *scanned_edges_d, *LBS_d;
+	thrust::device_vector<int> edge_frontier_size_d(dimGrid.x,0);
+
+	checkCudaErrors(cudaMallocPitch((void**)&edge_counts_d,&p.edge_counts,sizeof(int)*g.n,dimGrid.x));
+	checkCudaErrors(cudaMallocPitch((void**)&scanned_edges_d,&p.scanned_edges,sizeof(int)*g.n,dimGrid.x));
+	checkCudaErrors(cudaMallocPitch((void**)&LBS_d,&p.LBS,sizeof(int)*g.m,dimGrid.x));
+
+        size_t GPU_memory_requirement = sizeof(int)*g.n*sources_to_store + 4*sizeof(int)*g.n*dimGrid.x + sizeof(int)*(g.n+1) + sizeof(int)*(g.m) + sizeof(unsigned long long)*g.n*sources_to_store + sizeof(float)*g.n*sources_to_store + sizeof(float)*g.n + sizeof(int)*sources_to_store + 2*sizeof(int)*g.n*sources_to_store + sizeof(int)*g.m*sources_to_store;
         std::cout << "BC memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
 
-	betweenness_centrality<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),thrust::raw_pointer_cast(g.F.data()),g.n,g.m,d_d,sigma_d,delta_d,thrust::raw_pointer_cast(bc_d.data()),Q_d,Q2_d,S_d,endpoints_d,p,start,end);
+	betweenness_centrality<<<dimGrid,256>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),thrust::raw_pointer_cast(g.F.data()),g.n,g.m,d_d,sigma_d,delta_d,thrust::raw_pointer_cast(bc_d.data()),Q_d,Q2_d,S_d,endpoints_d,thrust::raw_pointer_cast(edge_frontier_size_d.data()),edge_counts_d,scanned_edges_d,LBS_d,p,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
         //std::vector< std::vector<float> > delta_h;
         transfer_result(g,delta_d,p.delta,sources_to_store,delta_h);
 
 	//Free algorithm-specific memory
+	checkCudaErrors(cudaFree(LBS_d));
+	checkCudaErrors(cudaFree(scanned_edges_d));
+	checkCudaErrors(cudaFree(edge_counts_d));
 	checkCudaErrors(cudaFree(endpoints_d));
 	checkCudaErrors(cudaFree(S_d));
 	checkCudaErrors(cudaFree(Q2_d));

@@ -17,7 +17,6 @@ __device__ int __forceinline__ get_next_power_of_2(int x)
 }
 
 //Speciailized binary search for the LBS problem: We want to return the greatest index in array that is less than key
-//TODO: Default argument for low to take advantage of when the same thread processes multiple array indices?
 __device__ int binary_search(int *array, int array_size, int key, int low = 0)
 {
 	//int low = 0;
@@ -38,7 +37,7 @@ __device__ int binary_search(int *array, int array_size, int key, int low = 0)
 		}
 		else
 		{
-			while(mid < high)
+			/*while(mid < high)
 			{
 				if(array[mid+1] == array[mid])
 				{
@@ -48,8 +47,8 @@ __device__ int binary_search(int *array, int array_size, int key, int low = 0)
 				{
 					break;
 				}
-			}
-			return mid;
+			}*/
+			return mid; //guarantee O(log n), and use the "normal method" to ensure the right answer is found
 		}
 	}
 
@@ -166,8 +165,8 @@ __device__ void load_balance_search_block(const int vertex_frontier_size, int *e
 		edge_frontier_size[0] = scanned_edges[vertex_frontier_size-1]+edge_counts[vertex_frontier_size-1];
 	}
 
+	//TODO: Time scans vs actual LBS work to see where time goes - LBS work below takes significantly longer
 	int ind = 0;
-	//TODO: Try an items per thread approach here too
 	for(int i=threadIdx.x; i<total_edges; i+=blockDim.x)
 	{
 		while(i >= scanned_edges[ind])

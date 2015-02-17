@@ -35,7 +35,7 @@ int main()
         std::vector<int> counts(VERTEX_FRONTIER), counts_scan(VERTEX_FRONTIER), sources, lbs;
         for(unsigned i=0; i<counts.size(); i++)
         {
-                counts[i] = rand() % 20; //0 through (k-1) work-items
+                counts[i] = rand() % 100000; //0 through (k-1) work-items
         }
         /*std::cout << "Number of work items: " << std::endl;
         std::copy(counts.begin(),counts.end(),std::ostream_iterator<int>(std::cout," "));
@@ -87,8 +87,8 @@ int main()
 	if(!thrust::equal(counts_scan.begin(),counts_scan.end(),counts_scan_h.begin()))
 	{
 		std::cout << "Scan failed." << std::endl;
-		thrust::copy(counts_scan_h.begin(),counts_scan_h.end(),std::ostream_iterator<int>(std::cout," " ));
-		std::cout << std::endl;
+		//thrust::copy(counts_scan_h.begin(),counts_scan_h.end(),std::ostream_iterator<int>(std::cout," " ));
+		//std::cout << std::endl;
 	}
 	else
 	{
@@ -98,7 +98,7 @@ int main()
 	std::cout << std::endl;
 	std::cout << "Time for Load-Balancing Search: " << std::setprecision(9) << time << " s" << std::endl;
 
-	int bytes = sizeof(int)*edges_d[0];
+	int64_t bytes = sizeof(int)*edges_d[0]; //The edges themselves are ints but there could be more than 2^31 of them for measurement/testing purposes
 	double bandwidth = bytes/time;
 	std::cout << "Memory Bandwidth: " << bandwidth/(1e9) << " GB/s" << std::endl;
 

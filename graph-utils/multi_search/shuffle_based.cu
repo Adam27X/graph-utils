@@ -108,7 +108,7 @@ __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n
 	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_row,update_sigma_row,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
-__global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end)
+__global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, int *edge_frontier_size, int *edge_counts, int *scanned_edges, int *LBS, const pitch p, const int start, const int end)
 {
 	auto init_sigma_delta = [p,sigma,delta,bc] (int k, int i)
 	{
@@ -315,6 +315,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 	};
 
 	//FIXME: This results in a very strange error where some threads of a warp seem to execute this lambda before other threads in a warp, despite the use of syncthreads.
+	//Try declaring current depth within this lambda alone
 	auto dependency_accumulation_edge_par = [p,&S_len,&endpoints_len,&current_depth,S,endpoints,d,sigma,delta,bc,R,C,F,n,m] (int *d_row, int i, int j, int lane_id)
 	{
 		//Set current depth
@@ -357,8 +358,88 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 			atomicAdd(&bc[kk],delta_row[kk]);
 		}
 	};
+
+	auto dependency_accumulation_lbs = [p,&S_len,&endpoints_len,&current_depth,S,endpoints,d,sigma,delta,bc,R,C,n,edge_frontier_size,edge_counts,scanned_edges,LBS] (int *d_row, int i, int j, int lane_id)
+	{
+		//Set current depth
+		__shared__ int *S_row;
+		__shared__ unsigned long long *sigma_row;
+		__shared__ float *delta_row;
+		__shared__ int *endpoints_row;
+		__shared__ int *edge_counts_row;
+		__shared__ int *scanned_edges_row;
+		__shared__ int *LBS_row;
+		if(j == 0)
+		{
+			S_row = get_row(S,p.S);
+			sigma_row = get_row(sigma,p.sigma);
+			delta_row = get_row(delta,p.delta);
+			endpoints_row = get_row(endpoints,p.endpoints);
+			edge_counts_row = get_row(edge_counts,p.edge_counts);
+			scanned_edges_row = get_row(scanned_edges,p.scanned_edges);
+			LBS_row = get_row(LBS,p.LBS);
+			current_depth = d_row[S_row[S_len-1]] - 1;
+		}
+		__syncthreads();
+
+		while(current_depth > 0)
+		{
+			int vertex_frontier_size = endpoints_row[current_depth+1]-endpoints_row[current_depth];
+			//Fill in edge counts
+			for(int kk=threadIdx.x; kk<vertex_frontier_size; kk+=blockDim.x)
+			{
+				int w = S_row[kk+endpoints_row[current_depth]]; //FIXME: Getting invalid values here
+				edge_counts_row[kk] = R[w+1]-R[w]; 
+				if(i == 2)
+				{
+					printf("w = %d. Edge count for w: %d. \n",w,edge_counts_row[kk]);
+				}
+			}
+			__syncthreads();
+			load_balance_search_block(vertex_frontier_size,&edge_frontier_size[blockIdx.x],edge_counts_row,scanned_edges_row,LBS_row);
+			__syncthreads();
+			if(i == 2 && j == 2)
+			{
+				printf("Vertex frontier size: %d. Edge frontier size: %d.\n",vertex_frontier_size,edge_frontier_size[blockIdx.x]);
+				printf("LBS: [");
+				for(int z=0; z<vertex_frontier_size; z++)
+				{	
+					printf("%d ",LBS_row[z]);
+				}
+				printf("]\n");
+				printf("Edge frontier: [ ");
+				for(int z=0; z<edge_frontier_size[blockIdx.x]; z++)
+				{
+					printf("(%d,%d) ",S_row[LBS_row[z]+endpoints_row[current_depth]],C[ R[S_row[LBS_row[z]+endpoints_row[current_depth]]] + z-scanned_edges_row[LBS_row[z]] ]);
+				}
+				printf("] \n");
+			}
+			for(int kk=threadIdx.x; kk<edge_frontier_size[blockIdx.x]; kk+=blockDim.x)
+			{
+				int w = S_row[LBS_row[kk]+endpoints_row[current_depth]];
+				int rank = kk - scanned_edges_row[LBS_row[kk]];
+				int v = C[R[w]+rank];
+				if(d_row[v] == (d_row[w]+1))
+				{
+					float change = ((float)sigma_row[w]/(float)sigma_row[v])*(1.0f+delta_row[v]);
+					atomicAdd(&delta_row[w],change);
+				}
+			}
+			__syncthreads();
+			if(j == 0)
+			{
+				current_depth--;
+			}
+			__syncthreads();
+		}
+
+		for(int kk=threadIdx.x; kk<n; kk+=blockDim.x)
+		{
+			atomicAdd(&bc[kk],delta_row[kk]);
+		}
+	};
         
 	auto null_lamb_1 = [](int){}; //getMax
 
-	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
+	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_lbs);
 }

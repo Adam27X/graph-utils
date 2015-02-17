@@ -11,6 +11,7 @@
 #include "../../device_graph.h"
 #include "../../util_device.cuh"
 #include "../race_and_resolve.cuh"
+#include "../load_balanced_search.cuh"
 
 std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_graph &g, int start, int end);
 
@@ -22,7 +23,7 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 
 struct pitch
 {
-	pitch() : d(0),sigma(0),delta(0),bc(0),Q(0),Q2(0),S(0),endpoints(0) { }
+	pitch() : d(0),sigma(0),delta(0),bc(0),Q(0),Q2(0),S(0),endpoints(0),edge_counts(0),scanned_edges(0),LBS(0) { }
 
 	size_t d;
 	size_t sigma;
@@ -32,6 +33,9 @@ struct pitch
 	size_t Q2;
 	size_t S;
 	size_t endpoints;
+	size_t edge_counts;
+	size_t scanned_edges;
+	size_t LBS;
 };
 
 //Get block of data from pitched pointer and pitch size
@@ -208,4 +212,4 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 __global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end);
 __global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, int *max, const pitch p, const int start, const int end);
 __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, int *Q, int *Q2, const pitch p, const int start, const int end);
-__global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end);
+__global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, int *edge_frontier_size, int *edge_counts, int *scanned_edges, int *LBS, const pitch p, const int start, const int end);
