@@ -127,11 +127,16 @@ __device__ void load_balance_search_block(const int vertex_frontier_size, int *e
 
 	int total_edges = 0;
 	//Ensure all threads in the warp execute WarpScan and get the value of total_edges
-	int vertex_frontier_rounded = get_next_power_of_2(vertex_frontier_size);
-	if(vertex_frontier_rounded < blockDim.x)
-	{
-		vertex_frontier_rounded = blockDim.x; //Must be at least the size of the warp for the syncthreads in the next loop to work correctly
+	__shared__ int vertex_frontier_rounded;
+	if(threadIdx.x == 0)
+	{	
+		vertex_frontier_rounded = get_next_power_of_2(vertex_frontier_size);
+		if(vertex_frontier_rounded < blockDim.x)
+		{
+			vertex_frontier_rounded = blockDim.x; //Must be at least the size of the warp for the syncthreads in the next loop to work correctly
+		}
 	}
+	__syncthreads();
 	for(int i=threadIdx.x; i<vertex_frontier_rounded; i+=blockDim.x) 
 	{
 		int local_count[ITEMS_PER_THREAD];

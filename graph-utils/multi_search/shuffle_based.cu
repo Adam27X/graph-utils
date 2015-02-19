@@ -384,7 +384,12 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 
 		while(current_depth > 0)
 		{
-			int vertex_frontier_size = endpoints_row[current_depth+1]-endpoints_row[current_depth];
+			__shared__ int vertex_frontier_size;
+		       	if(j == 0)
+			{
+				vertex_frontier_size = endpoints_row[current_depth+1]-endpoints_row[current_depth];
+			}
+			__syncthreads();
 			//Fill in edge counts
 			for(int kk=threadIdx.x; kk<vertex_frontier_size; kk+=blockDim.x)
 			{
