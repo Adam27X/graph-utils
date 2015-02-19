@@ -388,32 +388,12 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 			//Fill in edge counts
 			for(int kk=threadIdx.x; kk<vertex_frontier_size; kk+=blockDim.x)
 			{
-				int w = S_row[kk+endpoints_row[current_depth]]; //FIXME: Getting invalid values here
+				int w = S_row[kk+endpoints_row[current_depth]]; 
 				edge_counts_row[kk] = R[w+1]-R[w]; 
-				if(i == 2)
-				{
-					printf("w = %d. Edge count for w: %d. \n",w,edge_counts_row[kk]);
-				}
 			}
 			__syncthreads();
 			load_balance_search_block(vertex_frontier_size,&edge_frontier_size[blockIdx.x],edge_counts_row,scanned_edges_row,LBS_row);
 			__syncthreads();
-			if(i == 2 && j == 2)
-			{
-				printf("Vertex frontier size: %d. Edge frontier size: %d.\n",vertex_frontier_size,edge_frontier_size[blockIdx.x]);
-				printf("LBS: [");
-				for(int z=0; z<vertex_frontier_size; z++)
-				{	
-					printf("%d ",LBS_row[z]);
-				}
-				printf("]\n");
-				printf("Edge frontier: [ ");
-				for(int z=0; z<edge_frontier_size[blockIdx.x]; z++)
-				{
-					printf("(%d,%d) ",S_row[LBS_row[z]+endpoints_row[current_depth]],C[ R[S_row[LBS_row[z]+endpoints_row[current_depth]]] + z-scanned_edges_row[LBS_row[z]] ]);
-				}
-				printf("] \n");
-			}
 			for(int kk=threadIdx.x; kk<edge_frontier_size[blockIdx.x]; kk+=blockDim.x)
 			{
 				int w = S_row[LBS_row[kk]+endpoints_row[current_depth]];

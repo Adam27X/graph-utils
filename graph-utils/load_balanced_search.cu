@@ -91,7 +91,7 @@ __device__ void load_balance_search_warp(const int vertex_frontier_size, int *ed
 	int ind = 0;
 	for(int i=getLaneId(); i<total_edges; i+=WARP_SIZE)
 	{
-		while(i >= scanned_edges[ind])
+		while(ind < vertex_frontier_size && i >= scanned_edges[ind])
 		{
 			ind++;
 		}
@@ -160,16 +160,18 @@ __device__ void load_balance_search_block(const int vertex_frontier_size, int *e
 		}
 		total_edges += current_edges;
 	}
+	__syncthreads();
 	if(threadIdx.x == 0)
 	{
 		edge_frontier_size[0] = scanned_edges[vertex_frontier_size-1]+edge_counts[vertex_frontier_size-1];
 	}
+	__syncthreads();
 
-	//TODO: Time scans vs actual LBS work to see where time goes - LBS work below takes significantly longer
+	//LBS work below takes multiple orders of magnitude longer than scanning work above
 	int ind = 0;
-	for(int i=threadIdx.x; i<total_edges; i+=blockDim.x)
+	for(int i=threadIdx.x; i<edge_frontier_size[0]; i+=blockDim.x) 
 	{
-		while(i >= scanned_edges[ind])
+		while(ind < vertex_frontier_size && i >= scanned_edges[ind]) 
 		{
 			ind++;
 		}
