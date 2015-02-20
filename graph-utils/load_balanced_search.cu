@@ -126,7 +126,7 @@ __device__ void load_balance_search_block(const int vertex_frontier_size, int *e
 	__shared__ typename BlockScan::TempStorage temp_storage;
 
 	int total_edges = 0;
-	//Ensure all threads in the warp execute WarpScan and get the value of total_edges
+	//Ensure all threads in the block execute BlockScan and get the value of current_edges
 	__shared__ int vertex_frontier_rounded;
 	if(threadIdx.x == 0)
 	{	

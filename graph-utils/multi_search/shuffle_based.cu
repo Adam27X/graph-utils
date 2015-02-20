@@ -108,12 +108,16 @@ __global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n
 	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_row,update_sigma_row,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
+
+//TODO: Move all 'row' variables to shmem to save register space. Capture these pointers as references in each lambda function they're used to not duplicate variables
 __global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, int *edge_frontier_size, int *edge_counts, int *scanned_edges, int *LBS, const pitch p, const int start, const int end)
 {
-	auto init_sigma_delta = [p,sigma,delta,bc] (int k, int i)
+	__shared__ unsigned long long *sigma_row;
+	__shared__ float *delta_row;
+	auto init_sigma_delta = [&sigma_row,&delta_row,p,sigma,delta,bc] (int k, int i)
 	{
-		auto sigma_row = get_row(sigma,p.sigma); //In theory this needs to be called every iteration on i if we're going to store all of the results
-		auto delta_row = get_row(delta,p.delta);
+		sigma_row = get_row(sigma,p.sigma); //In theory this needs to be called every iteration on i if we're going to store all of the results
+		delta_row = get_row(delta,p.delta);
 		if(k == i)
 		{
 			sigma_row[k] = 1;
@@ -142,24 +146,22 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		endpoints_len = 2;
 	};
 
-	auto update_sigma_row = [sigma,p] (int *d_row, int v, int w)
+	auto update_sigma_row = [&sigma_row] (int *d_row, int v, int w)
 	{
 		if(d_row[w] == (d_row[v]+1))
 		{
-			auto sigma_row = get_row(sigma,p.sigma); //In theory this needs to be called every iteration on i if we're going to store all of the results
+			//auto sigma_row = get_row(sigma,p.sigma); //In theory this needs to be called every iteration on i if we're going to store all of the results
 			atomicAdd(&sigma_row[w],sigma_row[v]);
 		}
 	};
 
-	auto insert_stack = [p,S,&S_len] (int *Q2_row, int kk)
+	auto insert_stack = [&S_len,&S_row] (int *Q2_row, int kk)
 	{
-		auto S_row = get_row(S,p.S);
 		S_row[kk+S_len] = Q2_row[kk];
 	};
 
-	auto update_endpoints = [p,&endpoints_len,&S_len,endpoints] (int Q2_len)
+	auto update_endpoints = [&endpoints_len,&S_len,&endpoints_row] (int Q2_len)
 	{
-		auto endpoints_row = get_row(endpoints,p.endpoints);
 		endpoints_row[endpoints_len] = endpoints_row[endpoints_len-1] + Q2_len;
 		endpoints_len++;
 		S_len += Q2_len;
@@ -359,22 +361,14 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		}
 	};
 
-	auto dependency_accumulation_lbs = [p,&S_len,&endpoints_len,&current_depth,S,endpoints,d,sigma,delta,bc,R,C,n,edge_frontier_size,edge_counts,scanned_edges,LBS] (int *d_row, int i, int j, int lane_id)
+	auto dependency_accumulation_lbs = [p,&S_len,&endpoints_len,&current_depth,d,bc,R,C,n,edge_frontier_size,edge_counts,scanned_edges,LBS,&S_row,&endpoints_row,&sigma_row,&delta_row] (int *d_row, int i, int j, int lane_id)
 	{
 		//Set current depth
-		__shared__ int *S_row;
-		__shared__ unsigned long long *sigma_row;
-		__shared__ float *delta_row;
-		__shared__ int *endpoints_row;
 		__shared__ int *edge_counts_row;
 		__shared__ int *scanned_edges_row;
 		__shared__ int *LBS_row;
 		if(j == 0)
 		{
-			S_row = get_row(S,p.S);
-			sigma_row = get_row(sigma,p.sigma);
-			delta_row = get_row(delta,p.delta);
-			endpoints_row = get_row(endpoints,p.endpoints);
 			edge_counts_row = get_row(edge_counts,p.edge_counts);
 			scanned_edges_row = get_row(scanned_edges,p.scanned_edges);
 			LBS_row = get_row(LBS,p.LBS);
