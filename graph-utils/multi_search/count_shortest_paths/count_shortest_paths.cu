@@ -1,7 +1,7 @@
 #include "count_shortest_paths.cuh"
 
 //TODO: Pass in a reference vector and return void
-std::vector< std::vector<unsigned long long> > count_shortest_paths_setup(const device_graph &g, int start, int end)
+void count_shortest_paths_setup(const device_graph &g, int start, int end, std::vector< std::vector<unsigned long long> > &sigma_h)
 {
 	//For now, use "standard" grid/block sizes. These can be tuned later on.
 	dim3 dimGrid, dimBlock;
@@ -28,8 +28,7 @@ std::vector< std::vector<unsigned long long> > count_shortest_paths_setup(const 
 	count_shortest_paths<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,sigma_d,Q_d,Q2_d,p,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
-        std::vector< std::vector<unsigned long long> > sigma_host_vector;
-        transfer_result(g,sigma_d,p.sigma,sources_to_store,sigma_host_vector);
+        transfer_result(g,sigma_d,p.sigma,sources_to_store,sigma_h);
 
 	//Free algorithm-specific memory
 	checkCudaErrors(cudaFree(Q2_d));
@@ -39,7 +38,5 @@ std::vector< std::vector<unsigned long long> > count_shortest_paths_setup(const 
 	float time = end_clock(start_event,end_event);
 
 	std::cout << "Time for shuffle-based shortest-path counting: " << std::setprecision(9) << time << " s" << std::endl;
-
-	return sigma_host_vector;
 }
 

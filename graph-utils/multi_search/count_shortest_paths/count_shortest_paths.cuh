@@ -10,4 +10,4 @@
 #include "../../../util_device.cuh"
 #include "../../../device_graph.h"
 
-std::vector< std::vector<unsigned long long> > count_shortest_paths_setup(const device_graph &g, int start, int end);
+void count_shortest_paths_setup(const device_graph &g, int start, int end, std::vector< std::vector<unsigned long long> > &sigma_h);

@@ -153,7 +153,8 @@ int main(int argc, char **argv)
 	start = 0; 
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 	
-	std::vector< std::vector<unsigned long long> > result = count_shortest_paths_setup(g_d,start,end);
+	std::vector< std::vector<unsigned long long> > result;
+        count_shortest_paths_setup(g_d,start,end,result);
 	if(op.verify)
 	{
 		bool res = verify_sp(g_h,result,start,end);
