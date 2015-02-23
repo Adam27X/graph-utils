@@ -412,3 +412,13 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 
 	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation);
 }
+
+__global__ void transitive_closure(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end)
+{
+        auto null_lamb_1 = [](int){}; //A bit ugly, but it works
+        auto null_lamb_2 = [](int,int){};
+        auto null_lamb_3 = [](int*,int){};
+        auto null_lamb_4 = [](int*,int,int){};
+        auto null_lamb_5 = [](int*,int,int,int){};
+        multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,null_lamb_2,null_lamb_4,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
+}
