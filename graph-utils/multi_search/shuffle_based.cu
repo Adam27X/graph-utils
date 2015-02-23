@@ -73,7 +73,7 @@ __global__ void diameter_sampling(const int *R, const int *C, const int n, int *
         multi_search(R,C,n,d,Q,Q2,p,start,end,max_lamb,null_lamb_2,null_lamb_4,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
-__global__ void all_pairs_shortest_paths(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, int *Q, int *Q2, const pitch p, const int start, const int end)
+__global__ void count_shortest_paths(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, int *Q, int *Q2, const pitch p, const int start, const int end)
 {
 	auto null_lamb = [](int){};
 
@@ -165,6 +165,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		S_len += Q2_len;
 	};
 
+	//TODO: Get rid of some registers here too, if possible. Or, tune differently.
 	auto dependency_accumulation = [&S_len,&endpoints_len,&current_depth,&S_row,&endpoints_row,&sigma_row,&delta_row,bc,R,C,n] (int *d_row, int i, int j, int lane_id)
 	{
 		//Set current depth
@@ -178,7 +179,13 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		{
 			int w, r, r_end;
 			int k = threadIdx.x;
-			int depth_size = endpoints_row[current_depth+1]-endpoints_row[current_depth];
+			__shared__ int depth_size;
+		       
+			if(threadIdx.x == 0)
+			{
+				depth_size = endpoints_row[current_depth+1]-endpoints_row[current_depth];
+			}
+			__syncthreads();
 
 			if(k < depth_size)
 			{
@@ -217,13 +224,12 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 					}
 
 					typedef cub::WarpReduce<float> WarpReduceFloat;
-					__shared__ typename WarpReduceFloat::TempStorage temp_storage[32]; //Temporary storage for each warp
+					__shared__ typename WarpReduceFloat::TempStorage temp_storage[32]; //Temporary storage for each warp - 32 is max warps per block
 					float dsw_agg = WarpReduceFloat(temp_storage[threadIdx.x/32]).Sum(dsw);
-					if(getLaneId() == 0)
+					if(lane_id == 0)
 					{
 						delta_row[w_new] += dsw_agg;
 					}
-					//atomicAdd(&delta_row[w_new],dsw); //Is this killing us?
 
 					if(winner == lane_id) //Same thread cannot win twice
 					{
@@ -306,8 +312,6 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		}
 	};
 
-	//FIXME: This results in a very strange error where some threads of a warp seem to execute this lambda before other threads in a warp, despite the use of syncthreads.
-	//Try declaring current depth within this lambda alone
 	auto dependency_accumulation_edge_par = [&S_len,&endpoints_len,&current_depth,&S_row,&endpoints_row,&sigma_row,&delta_row,bc,R,C,F,n,m] (int *d_row, int i, int j, int lane_id)
 	{
 		//Set current depth
@@ -406,5 +410,5 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
         
 	auto null_lamb_1 = [](int){}; //getMax
 
-	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_edge_par);
+	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation);
 }

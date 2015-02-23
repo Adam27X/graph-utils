@@ -1,4 +1,4 @@
-//TODO: Testing; display results in a friendlier way - perhaps store parents in d?
+//TODO: Perhaps display results in a friendlier way - store parents?
 #include <iostream>
 #include <queue>
 #include <vector>
@@ -6,7 +6,7 @@
 #include "../../parse.h"
 #include "../../util.h"
 #include "../../device_graph.h"
-#include "../../graph-utils/multi_search/all_pairs_shortest_paths/all_pairs_shortest_paths.cuh"
+#include "../../graph-utils/multi_search/count_shortest_paths/count_shortest_paths.cuh"
 
 void sequential(host_graph &g_h, int source, std::vector<int> &expected, std::vector<unsigned long long> &paths)
 {
@@ -38,7 +38,7 @@ void sequential(host_graph &g_h, int source, std::vector<int> &expected, std::ve
 
 }
 
-bool verify_apsp(host_graph &g_h, std::vector< std::vector<unsigned long long> > &result, int start, int end)
+bool verify_sp(host_graph &g_h, std::vector< std::vector<unsigned long long> > &result, int start, int end)
 {
 	//Obtain sequential result
 	const int number_of_rows = result.size(); //Number of SMs on the GPU used for computation
@@ -153,10 +153,10 @@ int main(int argc, char **argv)
 	start = 0; 
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 	
-	std::vector< std::vector<unsigned long long> > result = all_pairs_shortest_paths_setup(g_d,start,end);
+	std::vector< std::vector<unsigned long long> > result = count_shortest_paths_setup(g_d,start,end);
 	if(op.verify)
 	{
-		bool res = verify_apsp(g_h,result,start,end);
+		bool res = verify_sp(g_h,result,start,end);
 		if(res)
 		{	
 			std::cout << "Test passed." << std::endl;

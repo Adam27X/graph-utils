@@ -1,7 +1,7 @@
-#include "all_pairs_shortest_paths.cuh"
+#include "count_shortest_paths.cuh"
 
 //TODO: Pass in a reference vector and return void
-std::vector< std::vector<unsigned long long> > all_pairs_shortest_paths_setup(const device_graph &g, int start, int end)
+std::vector< std::vector<unsigned long long> > count_shortest_paths_setup(const device_graph &g, int start, int end)
 {
 	//For now, use "standard" grid/block sizes. These can be tuned later on.
 	dim3 dimGrid, dimBlock;
@@ -25,7 +25,7 @@ std::vector< std::vector<unsigned long long> > all_pairs_shortest_paths_setup(co
         size_t GPU_memory_requirement = sizeof(int)*g.n*sources_to_store + 2*sizeof(int)*g.n*dimGrid.x + sizeof(int)*(g.n+1) + sizeof(int)*(g.m) + sizeof(unsigned long long)*g.n*sources_to_store;
         std::cout << "APSP memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
 
-	all_pairs_shortest_paths<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,sigma_d,Q_d,Q2_d,p,start,end);
+	count_shortest_paths<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,sigma_d,Q_d,Q2_d,p,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
         std::vector< std::vector<unsigned long long> > sigma_host_vector;
@@ -38,7 +38,7 @@ std::vector< std::vector<unsigned long long> > all_pairs_shortest_paths_setup(co
 	checkCudaErrors(cudaFree(d_d));
 	float time = end_clock(start_event,end_event);
 
-	std::cout << "Time for shuffle-based APSP: " << std::setprecision(9) << time << " s" << std::endl;
+	std::cout << "Time for shuffle-based shortest-path counting: " << std::setprecision(9) << time << " s" << std::endl;
 
 	return sigma_host_vector;
 }

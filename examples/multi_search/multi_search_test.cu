@@ -12,6 +12,7 @@
 #include "../../graph-utils/multi_search/CTA_warp.cuh"
 #include "../../graph-utils/multi_search/shuffle_based.cuh"
 
+//This is essentially the APSP problem (same definition used by Aydin Buluc in PARCO, 2009.
 void sequential(host_graph &g_h, int source, std::vector<int> &expected)
 {
 	std::queue<int> Q;
