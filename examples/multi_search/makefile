@@ -32,7 +32,7 @@ OBJECTS = $(program_CU_OBJS) $(program_CXX_OBJS)
 all: $(MULTI_SEARCH) 
 
 debug: CXXFLAGS = -g -O0 -std=c++11 -Wall -pedantic -DDEBUG $(EXTRA_FLAGS)
-debug: NVFLAGS = -O0 $(GEN_SM35) -g -G
+debug: NVFLAGS = -O0 $(GEN_SM35) -g -G -std=c++11
 debug: NVFLAGS += $(foreach includedir,$(program_CU_INCLUDE_DIRS),-I$(includedir))
 debug: $(MULTI_SEARCH)
 

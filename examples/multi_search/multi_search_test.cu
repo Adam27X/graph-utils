@@ -69,7 +69,7 @@ bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &resul
 	bool match = true;
 	int wrong_source;
 	int wrong_dest;
-	//int wrong_source_index;
+	int wrong_source_index;
 
 	for(unsigned j=0; j<sources_to_store; j++)
 	{
@@ -79,18 +79,18 @@ bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &resul
 			{
 				match = false;
 				wrong_source = sources[j]; 
-				//wrong_source_index = j;
+				wrong_source_index = j;
 				wrong_dest = i;
 				std::cout << "Mismatch for source " << wrong_source << " and dest " << wrong_dest << std::endl;
 				std::cout << "Expected distance: " << expected[j][i] << std::endl;
 				std::cout << "Actual distance: " << result[j][i] << std::endl;
-				break;
+				//break;
 			}
 		}
-		if(match == false)
+		/*if(match == false)
 		{
 			break;
-		}
+		}*/
 	}
 
 	/*if(match == false)
@@ -112,25 +112,11 @@ bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &resul
 		{
 			if(i == 0)
 			{
-				if(i == wrong_dest)
-				{
-					std::cout << "Actual = [\033[1;31m" << result[wrong_source_index][i] << "\033[0m";
-				}
-				else
-				{
-					std::cout << "Actual = [" << result[wrong_source_index][i];
-				}
+				std::cout << "Actual = [" << result[wrong_source_index][i];
 			}
 			else
 			{	
-				if(i == wrong_dest)
-				{
-					std::cout << ",\033[1;31m" << result[wrong_source_index][i] << "\033[0m";
-				}
-				else
-				{
-					std::cout << "," << result[wrong_source_index][i];
-				}
+				std::cout << "," << result[wrong_source_index][i];
 			}
 		}
 		std::cout << "]" << std::endl;

@@ -212,6 +212,7 @@ host_graph parse_snap(char *file)
 	std::string line;
 	std::set<int> vertices; //Keep track of the number of unique vertices
 	bool extra_info_warned = false;
+	bool self_edge_warned = false;
 	while(std::getline(snap,line))
 	{
 		if(line[0] == '#')
@@ -254,6 +255,12 @@ host_graph parse_snap(char *file)
 		int u = stoi(splitvec[0]);
 		int v = stoi(splitvec[1]);
 
+		if((u == v) && (!self_edge_warned))
+		{
+			std::cerr << "Warning: Self-edge detected. (" << u << "," << v << ")" << std::endl;
+			self_edge_warned = true;
+		}
+
 		g.F.push_back(u);
 		g.C.push_back(v);
 		vertices.insert(u);
@@ -270,7 +277,7 @@ host_graph parse_snap(char *file)
 	int last_node = 0;
 	for(int i=0; i<g.m; i++)
 	{
-		while(g.F[i] > last_node)
+		while((g.F[i] > last_node) && (last_node < (g.n+1)))
 		{
 			g.R[++last_node] = i;
 		}
