@@ -8,10 +8,11 @@
 class program_options
 {
 public:
-	program_options() : device(-1), infile(NULL), verify(false) {}
+	program_options() : device(-1), infile(NULL), outfile(NULL), verify(false) {}
 	
 	int device;
 	char *infile;
+	char *outfile;
 	bool verify;
 };
 

@@ -292,3 +292,27 @@ host_graph parse_snap(char *file)
 
 	return g;
 }
+
+bool host_graph::write_edgelist_to_file(const std::string &file, bool header)
+{
+	std::ofstream ofs(file.c_str());
+	if(ofs.good())
+	{
+		if(header)
+		{
+			ofs << n << " " << m << std::endl;
+		}
+		for(int i=0; i<m; i++)
+		{
+			ofs << F[i] << " " << C[i] << std::endl;
+		}
+		ofs.close();
+	}
+	else
+	{
+		std::cerr << "Error opening file " << file << " for writing." << std::endl;
+		return false;
+	}
+
+	return true;
+}

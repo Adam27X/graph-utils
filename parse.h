@@ -16,6 +16,8 @@ public:
 	void print_from_array();
 	void print_adjacency_list();
 
+	bool write_edgelist_to_file(const std::string &file, bool header); //Returns true on success, false otherwise
+
 	//Hybrid CSR/COO representation
 	std::vector<int> C; //Array of edges
 	std::vector<int> R; //Array of offsets

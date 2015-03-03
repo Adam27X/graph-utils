@@ -10,13 +10,14 @@ program_options parse_arguments(int argc, char *argv[])
 		{"device",required_argument,0,'d'},
 		{"help",no_argument,0,'h'},
 		{"infile",required_argument,0,'i'},
+		{"outfile",required_argument,0,'o'},
 		{"verify",no_argument,0,'v'},
 		{0,0,0,0} //Terminate with null
 	};
 
 	int option_index = 0;
 
-	while((c = getopt_long(argc,argv,"d:hi:v",long_options,&option_index)) != -1)
+	while((c = getopt_long(argc,argv,"d:hi:o:v",long_options,&option_index)) != -1)
 	{
 		switch(c)
 		{
@@ -30,6 +31,10 @@ program_options parse_arguments(int argc, char *argv[])
 
 			case 'i':
 				op.infile = optarg;
+			break;
+
+			case 'o':
+				op.outfile = optarg;
 			break;
 
 			case 'v':
