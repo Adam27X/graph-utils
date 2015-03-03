@@ -108,6 +108,7 @@ __global__ void count_shortest_paths(const int *R, const int *C, const int n, in
 	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_row,update_sigma_row,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
+#define DSAMPLE 210
 __global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, int *edge_frontier_size, int *edge_counts, int *scanned_edges, int *LBS, const pitch p, const int start, const int end)
 {
 	__shared__ unsigned long long *sigma_row;
@@ -272,12 +273,19 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 	};
 
 	//See if the old method is preferential for the dependency accumulation
-	auto dependency_accumulation_work_eff = [&S_len,&endpoints_len,&current_depth,&S_row,&endpoints_row,&sigma_row,&delta_row,bc,R,C,n] (int *d_row, int i, int j, int lane_id)
+	//To make verification work properly, DIAMETER_SAMPLES must be a multiple of the number of SMs
+	const int diameter_samples = DSAMPLE; //FIXME: Have a portable way to introduce such a number. LCM(14,15) = 210, so this value works both for the Titan and the K40
+	__shared__ int diameters[diameter_samples];
+	auto dependency_accumulation_work_eff = [&S_len,&endpoints_len,&current_depth,&S_row,&endpoints_row,&sigma_row,&delta_row,bc,R,C,n,diameter_samples,&diameters] (int *d_row, int i, int j, int lane_id)
 	{
 		//Set current depth
 		if(j == 0)
 		{
 			current_depth = d_row[S_row[S_len-1]] - 1;
+			if(i < diameter_samples)
+			{
+				diameters[i] = current_depth;
+			}
 		}
 		__syncthreads();
 
@@ -410,7 +418,45 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
         
 	auto null_lamb_1 = [](int){}; //getMax
 
-	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation);
+	if(n > DSAMPLE)
+	{
+		//Two calls: One that goes from [start,DIAMETER_SAMPLES) and another from [DIAMETER_SAMPLES,end). 
+		multi_search(R,C,n,d,Q,Q2,p,start,diameter_samples,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
+		__shared__ int diameter;
+		if(threadIdx.x==0)
+		{
+			diameter = 0;
+		}
+		__syncthreads();
+		for(int z=threadIdx.x; z<diameter_samples/2; z+=blockDim.x) //Each block computes this independently. Choose diameter_samples/2 to ensure blocks have valid data.
+		{
+			atomicMax(&diameter,diameters[z]);	
+		}
+		__syncthreads();
+		__shared__ int log2n;
+		if(threadIdx.x == 0)
+		{
+			log2n = 0;
+			int tempn = n;
+			while(tempn >>= 1)
+			{
+				++log2n;
+			}
+		}
+		__syncthreads();
+		if(diameter < 4*log2n)
+		{
+			multi_search(R,C,n,d,Q,Q2,p,diameter_samples,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_edge_par);
+		}
+		else
+		{
+			multi_search(R,C,n,d,Q,Q2,p,diameter_samples,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
+		}
+	}
+	else
+	{
+		multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
+	}
 }
 
 __global__ void transitive_closure(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end)

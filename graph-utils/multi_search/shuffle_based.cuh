@@ -120,10 +120,11 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                                         //Strip mine winner's adjlist
                                         int r_gather = __shfl(r,winner) + lane_id; 
                                         int r_gather_end = __shfl(r_end,winner); 
-                                        int v_new = __shfl(v,winner); 
+                                        int v_new = __shfl(v,winner);
                                         while(r_gather < r_gather_end)
                                         {
                                                 int w = C[r_gather];
+
                                                 //Assuming no duplicate/self-edges in the graph, no atomics needed
                                                 //if(d_row[w] == INT_MAX)
 						//atomicCAS is necessary here for appropriately computing the number of shortest paths
@@ -136,6 +137,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                                                         Q2_row[t] = w;
                                                 }
 						updateSigma(d_row,v_new,w);
+
                                                 r_gather += WARP_SIZE;
                                         }
 
@@ -175,10 +177,6 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 				{
 					getMax(d_row[kk]);
 				}
-				/*if(i == 8 && j<32)
-				{
-					printf("thread %d done with sp calc \n",j);
-				}*/
                                 break;
                         }
                         else
@@ -201,10 +199,6 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                 }
 
 		__syncthreads();
-		/*if(i == 8 && j<32)
-		{
-			printf("thread %d (lane id %d) calling dependencyAccum() \n",j,lane_id);
-		}*/
 		dependencyAccum(d_row,i,j,lane_id);
         }
 }
