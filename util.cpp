@@ -9,6 +9,7 @@ program_options parse_arguments(int argc, char *argv[])
 	{
 		{"device",required_argument,0,'d'},
 		{"help",no_argument,0,'h'},
+		{"approx",required_argument,0,'k'},
 		{"infile",required_argument,0,'i'},
 		{"outfile",required_argument,0,'o'},
 		{"verify",no_argument,0,'v'},
@@ -17,7 +18,7 @@ program_options parse_arguments(int argc, char *argv[])
 
 	int option_index = 0;
 
-	while((c = getopt_long(argc,argv,"d:hi:o:v",long_options,&option_index)) != -1)
+	while((c = getopt_long(argc,argv,"d:hk:i:o:v",long_options,&option_index)) != -1)
 	{
 		switch(c)
 		{
@@ -28,6 +29,10 @@ program_options parse_arguments(int argc, char *argv[])
 			case 'h':
 				std::cout << "Usage: " << argv[0] << " -i <input graph file>" << std::endl;	
 			exit(0);
+
+			case 'k':
+				op.approx = atoi(optarg);
+			break;
 
 			case 'i':
 				op.infile = optarg;

@@ -109,7 +109,7 @@ __global__ void count_shortest_paths(const int *R, const int *C, const int n, in
 }
 
 #define DSAMPLE 210
-__global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, int *edge_frontier_size, int *edge_counts, int *scanned_edges, int *LBS, const pitch p, const int start, const int end)
+__global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end)
 {
 	__shared__ unsigned long long *sigma_row;
 	__shared__ float *delta_row;
@@ -359,7 +359,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		}
 	};
 
-	auto dependency_accumulation_lbs = [p,&S_len,&endpoints_len,&current_depth,d,bc,R,C,n,edge_frontier_size,edge_counts,scanned_edges,LBS,&S_row,&endpoints_row,&sigma_row,&delta_row] (int *d_row, int i, int j, int lane_id)
+	/*auto dependency_accumulation_lbs = [p,&S_len,&endpoints_len,&current_depth,d,bc,R,C,n,edge_frontier_size,edge_counts,scanned_edges,LBS,&S_row,&endpoints_row,&sigma_row,&delta_row] (int *d_row, int i, int j, int lane_id)
 	{
 		//Set current depth
 		__shared__ int *edge_counts_row;
@@ -414,7 +414,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		{
 			atomicAdd(&bc[kk],delta_row[kk]);
 		}
-	};
+	};*/
         
 	auto null_lamb_1 = [](int){}; //getMax
 
