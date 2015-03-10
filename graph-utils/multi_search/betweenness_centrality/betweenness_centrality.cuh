@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <cstdio>
+#include <cmath>
 
 #include "../shuffle_based.cuh"
 #include "../common.cuh"

@@ -109,7 +109,7 @@ __global__ void count_shortest_paths(const int *R, const int *C, const int n, in
 }
 
 #define DSAMPLE 210
-__global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end)
+__global__ void betweenness_centrality(const int *R, const int *C, const int *F, const int n, const int m, int *d, unsigned long long *sigma, float *delta, float *bc, int *Q, int *Q2, int *S, int *endpoints, const pitch p, const int start, const int end, int *dep_accum)
 {
 	__shared__ unsigned long long *sigma_row;
 	__shared__ float *delta_row;
@@ -442,6 +442,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 			{
 				++log2n;
 			}
+			dep_accum[0] = diameter;
 		}
 		__syncthreads();
 		if(diameter < 4*log2n)

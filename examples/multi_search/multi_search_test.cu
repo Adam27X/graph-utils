@@ -69,7 +69,7 @@ bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &resul
 	bool match = true;
 	int wrong_source;
 	int wrong_dest;
-	int wrong_source_index;
+	//int wrong_source_index;
 
 	for(unsigned j=0; j<sources_to_store; j++)
 	{
@@ -79,18 +79,18 @@ bool verify_multi_search(host_graph &g_h, std::vector< std::vector<int> > &resul
 			{
 				match = false;
 				wrong_source = sources[j]; 
-				wrong_source_index = j;
+				//wrong_source_index = j;
 				wrong_dest = i;
 				std::cout << "Mismatch for source " << wrong_source << " and dest " << wrong_dest << std::endl;
 				std::cout << "Expected distance: " << expected[j][i] << std::endl;
 				std::cout << "Actual distance: " << result[j][i] << std::endl;
-				//break;
+				break;
 			}
 		}
-		/*if(match == false)
+		if(match == false)
 		{
 			break;
-		}*/
+		}
 	}
 
 	/*if(match == false)
@@ -162,40 +162,52 @@ int main(int argc, char **argv)
 	if(alg[0])
 	{
 		result = multi_search_linear_atomics_setup(g_d,start,end);
-		pass = verify_multi_search(g_h,result,start,end);
-		if(pass)
+		if(op.verify)
 		{
-			std::cout << "Linear with atomics: Test passed." << std::endl;
+			pass = verify_multi_search(g_h,result,start,end);
+			if(pass)
+			{
+				std::cout << "Linear with atomics: Test passed." << std::endl;
+			}
 		}
 	}
 
 	if(alg[1])
 	{
 		result = multi_search_edge_parallel_setup(g_d,start,end);
-		pass = verify_multi_search(g_h,result,start,end);
-		if(pass)
+		if(op.verify)
 		{
-			std::cout << "Edge parallel: Test passed." << std::endl;
+			pass = verify_multi_search(g_h,result,start,end);
+			if(pass)
+			{
+				std::cout << "Edge parallel: Test passed." << std::endl;
+			}
 		}
 	}
 
 	if(alg[2])
 	{
 		result = multi_search_warp_based_setup(g_d,start,end);
-		pass = verify_multi_search(g_h,result,start,end);
-		if(pass)
+		if(op.verify)
 		{
-			std::cout << "Warp based: Test passed." << std::endl;
+			pass = verify_multi_search(g_h,result,start,end);
+			if(pass)
+			{
+				std::cout << "Warp based: Test passed." << std::endl;
+			}
 		}
 	}
 
 	if(alg[3])
 	{
 		result = multi_search_scan_based_setup(g_d,start,end);
-		pass = verify_multi_search(g_h,result,start,end);
-		if(pass)
+		if(op.verify)
 		{
-			std::cout << "Scan based: Test passed." << std::endl;
+			pass = verify_multi_search(g_h,result,start,end);
+			if(pass)
+			{
+				std::cout << "Scan based: Test passed." << std::endl;
+			}
 		}
 	}
 		

@@ -25,6 +25,7 @@ void betweenness_centrality_setup(const device_graph &g, int start, int end, std
 	checkCudaErrors(cudaMallocPitch((void**)&S_d,&p.S,sizeof(int)*g.n,dimGrid.x));
 	checkCudaErrors(cudaMallocPitch((void**)&endpoints_d,&p.endpoints,sizeof(int)*g.n,dimGrid.x));
 	thrust::device_vector<float> bc_d(g.n,0);
+	thrust::device_vector<int> dep_accum(1,0); //Signify which dependency accumulation method was chosen
 
 	//Memory specific to Load-Balancing Search
 	//int *edge_counts_d, *scanned_edges_d, *LBS_d;
@@ -38,7 +39,7 @@ void betweenness_centrality_setup(const device_graph &g, int start, int end, std
         std::cout << "BC memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
 
 	//shuffle-based dep: 896; LBS: 512
-	betweenness_centrality<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),thrust::raw_pointer_cast(g.F.data()),g.n,g.m,d_d,sigma_d,delta_d,thrust::raw_pointer_cast(bc_d.data()),Q_d,Q2_d,S_d,endpoints_d,p,start,end);//thrust::raw_pointer_cast(edge_frontier_size_d.data()),edge_counts_d,scanned_edges_d,LBS_d,p,start,end);
+	betweenness_centrality<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),thrust::raw_pointer_cast(g.F.data()),g.n,g.m,d_d,sigma_d,delta_d,thrust::raw_pointer_cast(bc_d.data()),Q_d,Q2_d,S_d,endpoints_d,p,start,end,thrust::raw_pointer_cast(dep_accum.data()));//thrust::raw_pointer_cast(edge_frontier_size_d.data()),edge_counts_d,scanned_edges_d,LBS_d,p,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
         //std::vector< std::vector<float> > delta_h;
@@ -57,6 +58,17 @@ void betweenness_centrality_setup(const device_graph &g, int start, int end, std
 	checkCudaErrors(cudaFree(d_d));
 	float time = end_clock(start_event,end_event);
 
+	int diameter_est = dep_accum[0];
+	std::cout << "Estimated diameter: " << diameter_est << std::endl;
+	std::cout << "Threshold: " << 4*std::log2(g.n) << " (";
+	if(diameter_est < 4*std::log2(g.n))
+	{
+		std::cout << "Edge-parallel dependency accumulation chosen)" << std::endl;
+	}
+	else
+	{
+		std::cout << "Work-efficient dependency accumulation chosen)" << std::endl;
+	}
 	std::cout << "Time for shuffle-based BC: " << std::setprecision(9) << time << " s" << std::endl;
 }
 
