@@ -134,7 +134,7 @@ host_graph parse_metis(char *file)
 		std::string temp;
 		for(std::string::iterator i=line.begin(),e=line.end();i!=e;++i)
 		{
-			if((*i == '\t') || (*i == ' '))
+			if(((*i == '\t') || (*i == ' ')) && (!temp.empty()))
 			{
 				splitvec.push_back(temp);
 				temp.clear();
