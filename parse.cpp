@@ -85,17 +85,21 @@ void host_graph::print_adjacency_list()
 	}
 }
 
-host_graph parse(char *file)
+host_graph parse(const program_options &op)
 {
-	std::string s(file);
+	std::string s(op.format);
 
-	if(s.find(".graph") != std::string::npos)
+	if(s == "dimacs")
 	{
-		return parse_metis(file);
+		return parse_metis(op.infile);
 	}
-	else if(s.find(".txt") != std::string::npos)
+	else if(s == "edgelist")
 	{
-		return parse_snap(file);
+		return parse_snap(op.infile,false);
+	}
+	else if(s == "edgelist_h")
+	{
+		return parse_snap(op.infile,true);
 	}
 	else
 	{
@@ -199,7 +203,8 @@ host_graph parse_metis(char *file)
 	return g;
 }
 
-host_graph parse_snap(char *file)
+//TODO: Handle the case where headers exist
+host_graph parse_snap(char *file, bool header)
 {
 	host_graph g;
 
@@ -226,7 +231,7 @@ host_graph parse_snap(char *file)
                 std::string temp;
                 for(std::string::iterator i=line.begin(),e=line.end();i!=e;++i)
                 {
-                        if((*i == '\t') || (*i == ' '))
+			if(((*i == '\t') || (*i == ' ')) && (!temp.empty()))
                         {
                                 splitvec.push_back(temp);
                                 temp.clear();
@@ -315,4 +320,17 @@ bool host_graph::write_edgelist_to_file(const std::string &file, bool header)
 	}
 
 	return true;
+}
+
+unsigned long long host_graph::count_degree_zero_vertices()
+{
+	unsigned long long count = 0;
+        for(auto i=0; i<n; ++i)
+        {
+		if(R[i] == R[i+1])
+		{
+			++count;
+		}
+        }
+	return count;
 }

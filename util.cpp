@@ -8,6 +8,7 @@ program_options parse_arguments(int argc, char *argv[])
 	static struct option long_options[] =
 	{
 		{"device",required_argument,0,'d'},
+		{"format",required_argument,0,'f'},
 		{"help",no_argument,0,'h'},
 		{"approx",required_argument,0,'k'},
 		{"infile",required_argument,0,'i'},
@@ -18,7 +19,7 @@ program_options parse_arguments(int argc, char *argv[])
 
 	int option_index = 0;
 
-	while((c = getopt_long(argc,argv,"d:hk:i:o:v",long_options,&option_index)) != -1)
+	while((c = getopt_long(argc,argv,"d:f:hk:i:o:v",long_options,&option_index)) != -1)
 	{
 		switch(c)
 		{
@@ -26,8 +27,12 @@ program_options parse_arguments(int argc, char *argv[])
 				op.device = atoi(optarg);
 			break;
 
+			case 'f':
+				op.format = optarg;
+			break;
+
 			case 'h':
-				std::cout << "Usage: " << argv[0] << " -i <input graph file>" << std::endl;	
+				std::cout << "Usage: " << argv[0] << " -i <input graph file> -f <graph format: dimacs, edgelist, edgelist_h>" << std::endl;	
 			exit(0);
 
 			case 'k':
@@ -57,9 +62,9 @@ program_options parse_arguments(int argc, char *argv[])
 		}
 	}
 
-	if(op.infile == NULL)
+	if(op.infile == NULL || op.format == NULL)
 	{
-		std::cerr << "Command line error: Input graph file is required. Use the -i switch." << std::endl;
+		std::cerr << "Command line error: Input graph file and format are required. Use the -i and -f switches." << std::endl;
 		exit(1);
 	}
 

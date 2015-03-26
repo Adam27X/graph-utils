@@ -418,7 +418,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
         
 	auto null_lamb_1 = [](int){}; //getMax
 
-	if(n > DSAMPLE)
+	if(n > diameter_samples)
 	{
 		//Two calls: One that goes from [start,DIAMETER_SAMPLES) and another from [DIAMETER_SAMPLES,end). 
 		multi_search(R,C,n,d,Q,Q2,p,start,diameter_samples,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);

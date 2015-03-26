@@ -7,6 +7,8 @@
 #include <fstream>
 #include <cstdlib>
 
+#include "util.h"
+
 //TODO: Swap in thrust::host_vector for std::vector?
 class host_graph
 {
@@ -17,6 +19,7 @@ public:
 	void print_adjacency_list();
 
 	bool write_edgelist_to_file(const std::string &file, bool header); //Returns true on success, false otherwise
+	unsigned long long count_degree_zero_vertices();
 
 	//Hybrid CSR/COO representation
 	std::vector<int> C; //Array of edges
@@ -29,6 +32,6 @@ public:
 	bool directed;
 };
 
-host_graph parse(char *file);
+host_graph parse(const program_options &op);
 host_graph parse_metis(char *file);
-host_graph parse_snap(char *file);
+host_graph parse_snap(char *file, bool header);

@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 {
 	program_options op = parse_arguments(argc,argv);
 	
-	host_graph g_h = parse(op.infile);
+	host_graph g_h = parse(op);
 	std::cout << "Number of vertices: " << g_h.n << std::endl;
 	std::cout << "Number of (directed) edges: " << g_h.m << std::endl;
 	int maxdegree = 0;
