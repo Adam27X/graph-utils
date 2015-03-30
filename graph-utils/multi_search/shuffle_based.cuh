@@ -51,6 +51,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 {
         int j = threadIdx.x;
         int lane_id = getLaneId();
+	int warp_id = threadIdx.x/32;
         __shared__ int  *Q_row;
         __shared__ int *Q2_row;
 
@@ -95,11 +96,12 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                 {
                         //Listing 9: Warp-based, strip-mined neighbor gathering
                         int v, r, r_end;
-                        int k = threadIdx.x;
+                        int k = lane_id*WARP_SIZE + warp_id;
 
                         if(k < Q_len)
                         {
                                 v = Q_row[k];
+				//v = Q_row[lane_id*WARP_SIZE + warp_id]; //strided access into the queue to provide better load balancing across warps
                                 r = R[v];
                                 r_end = R[v+1];
                         }
@@ -151,7 +153,8 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                                 k+=blockDim.x;
                                 if(k < Q_len)
                                 {
-                                        v = Q_row[k];
+					v = Q_row[k];
+					//v = Q_row[lane_id*WARP_SIZE + warp_id]; //strided access into the queue to provide better load balancing across warps
                                         r = R[v];
                                         r_end = R[v+1];
                                 }
@@ -162,8 +165,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                                         r_end = 0;
                                 }
 
-                                //if((lane_id == 0) && (k >= Q_len)) //The entire warp is done
-                                if((k-threadIdx.x) >= Q_len) //If thread 0 doesn't have work, the entire warp is done
+                                if((k-(lane_id*WARP_SIZE)) >= Q_len) //If thread 0 doesn't have work, the entire warp is done
                                 {
                                         break;
                                 }
