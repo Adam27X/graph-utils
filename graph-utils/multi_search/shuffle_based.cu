@@ -179,16 +179,48 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		while(current_depth > 0) 
 		{
 			int w, r, r_end;
-			int k = threadIdx.x;
+			int k = threadIdx.x/32; //warp_id
 			__shared__ int depth_size;
+			__shared__ int next_stack_element;
 		       
 			if(threadIdx.x == 0)
 			{
 				depth_size = endpoints_row[current_depth+1]-endpoints_row[current_depth];
+				next_stack_element = 32;
+
 			}
 			__syncthreads();
 
-			if(k < depth_size)
+			while(k < depth_size)
+			{
+				w = S_row[endpoints_row[current_depth]+k];
+				r = R[w] + lane_id;
+				r_end = R[w+1];
+				unsigned long long sw = sigma_row[w];
+				float dsw = 0.0;
+				while(r < r_end)
+				{
+					int v = C[r];
+					if(d_row[v] == (d_row[w]+1))
+					{
+						dsw += (sw/(float)sigma_row[v])*(1.0f+delta_row[v]);
+					}
+					r += WARP_SIZE;
+				}
+					
+				typedef cub::WarpReduce<float> WarpReduceFloat;
+				__shared__ typename WarpReduceFloat::TempStorage temp_storage[32]; //Temporary storage for each warp - 32 is max warps per block
+				float dsw_agg = WarpReduceFloat(temp_storage[threadIdx.x/32]).Sum(dsw);
+				if(lane_id == 0)
+				{
+					delta_row[w] = dsw_agg;
+					k = atomicAdd(&next_stack_element,1);
+				}
+				k = __shfl(k,0);
+			}
+			__syncthreads();
+
+			/*if(k < depth_size)
 			{
 				w = S_row[k+endpoints_row[current_depth]];
 				r = R[w];
@@ -203,6 +235,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 
 			while(1)
 			{
+
 				while(__any(r_end-r))
 				{
 					//Vie for control of warp
@@ -258,7 +291,8 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 					break;
 				}
 			}
-			__syncthreads();
+			__syncthreads();*/
+
 			if(j == 0)
 			{
 				current_depth--;
@@ -447,7 +481,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		__syncthreads();
 		if(diameter < 4*log2n)
 		{
-			multi_search(R,C,n,d,Q,Q2,p,diameter_samples,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_edge_par);
+			multi_search(R,C,n,d,Q,Q2,p,diameter_samples,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation);
 		}
 		else
 		{
@@ -458,6 +492,9 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 	{
 		multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
 	}
+
+	//Completely async dep accum
+	//multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation);
 }
 
 __global__ void transitive_closure(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end)
