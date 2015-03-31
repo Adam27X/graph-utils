@@ -45,7 +45,7 @@ __device__ __forceinline__ T* get_row(T* data, size_t p)
 	return (T*)((char*)data + blockIdx.x*p);	
 }
 
-//TODO: Generalize the beginning and endroutines for more flexibility. Push initialization into lambdas and, if necessary, reuse the lambdas
+//TODO: Generalize the beginning and endroutines for more flexibility. Push initialization into lambdas and, if necessary, reuse the lambdas. Use traits and provide default (likely null) values for some of the parameters
 template <class F1, class F2, class F3, class F4, class F5, class F6, class F7>
 __device__ void multi_search(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end, F1 getMax, F2 initLocal, F3 updateSigma, F4 initStack, F5 insertStack, F6 updateEndpoints, F7 dependencyAccum)
 {
@@ -92,86 +92,44 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                 }
                 __syncthreads();
 
-                while(1)
+                while(1) //While a frontier exists for this source vertex...
                 {
-                        //Listing 9: Warp-based, strip-mined neighbor gathering
-                        int v, r, r_end;
-                        int k = lane_id*WARP_SIZE + warp_id;
+			//Let each warp be assigned to an element in the queue, once that element is processed the warp grabs the next queue element, if any. Warps synchronize once all queue elements are handled.
+			__shared__ int next_queue_element;
+			int k = warp_id; //current_queue_element
 
-                        if(k < Q_len)
-                        {
-                                v = Q_row[k];
-				//v = Q_row[lane_id*WARP_SIZE + warp_id]; //strided access into the queue to provide better load balancing across warps
-                                r = R[v];
-                                r_end = R[v+1];
-                        }
-                        else
-                        {
-                                v = -1;
-                                r = 0;
-                                r_end = 0;
-                        }
+			if(j == 0)
+			{
+				next_queue_element = 32; //32 = number of warps. Warps [0,w-1] process queue elements [0,w-1] in the current frontier and asynchronously grab elements [w,Q_len). TODO: Automically change this number when the blocksize changes.
+			}
+			__syncthreads();
 
-                        while(1)
-                        {
-                                while(__any(r_end-r))
-                                {
-                                        //Vie for control of warp
-                                        int winner = race_and_resolve_warp(r_end-r);
+			while(k < Q_len) //Some warps will execute this loop, some won't. When a warp does, all threads in the warp do.
+			{
+				int v = Q_row[k];
+				int r = R[v] + lane_id;
+				int r_end = R[v+1];
 
-                                        //Strip mine winner's adjlist
-                                        int r_gather = __shfl(r,winner) + lane_id; 
-                                        int r_gather_end = __shfl(r_end,winner); 
-                                        int v_new = __shfl(v,winner);
-                                        while(r_gather < r_gather_end)
-                                        {
-                                                int w = C[r_gather];
+				while(r < r_end) //Only some threads in each warp will execute this loop
+				{
+					int w = C[r];
+					if(atomicCAS(&d_row[w],INT_MAX,d_row[v]+1) == INT_MAX)
+					{
+						int t = atomicAdd(&Q2_len,1);
+						Q2_row[t] = w;
+					}
+					updateSigma(d_row,v,w);
 
-                                                //Assuming no duplicate/self-edges in the graph, no atomics needed
-                                                //if(d_row[w] == INT_MAX)
-						//atomicCAS is necessary here for appropriately computing the number of shortest paths
-						//this restriction can be lifted if the calculation of d is all that matters. 
-						//This discrepancy can be handled via lambdas, but is of low priority as of right now.
-						//TODO: Make this entire section its own function call so atomics are only used where necessary
-						if(atomicCAS(&d_row[w],INT_MAX,d_row[v_new]+1) == INT_MAX)
-                                                {
-                                                        int t = atomicAdd(&Q2_len,1);
-                                                        Q2_row[t] = w;
-                                                }
-						updateSigma(d_row,v_new,w);
+					r += WARP_SIZE;
+				}	
+				if(lane_id == 0)
+				{
+					k = atomicAdd(&next_queue_element,1); //Grab the next item off of the queue
+				}
+				k = __shfl(k,0); //All threads in the warp need the value of k
+			}
+			__syncthreads();
 
-                                                r_gather += WARP_SIZE;
-                                        }
-
-                                        if(winner == lane_id) //Same thread cannot win twice
-                                        {
-                                                r = 0;
-                                                r_end = 0;
-                                        }
-                                }
-
-                                k+=blockDim.x;
-                                if(k < Q_len)
-                                {
-					v = Q_row[k];
-					//v = Q_row[lane_id*WARP_SIZE + warp_id]; //strided access into the queue to provide better load balancing across warps
-                                        r = R[v];
-                                        r_end = R[v+1];
-                                }
-                                else
-                                {
-                                        v = -1;
-                                        r = 0;
-                                        r_end = 0;
-                                }
-
-                                if((k-(lane_id*WARP_SIZE)) >= Q_len) //If thread 0 doesn't have work, the entire warp is done
-                                {
-                                        break;
-                                }
-                        }
-                        __syncthreads();
-                                       
 		        //TODO: Combine getMax, insertStack, and updateEndpoints into one functon that resets the queue	
                         if(Q2_len == 0)
                         {

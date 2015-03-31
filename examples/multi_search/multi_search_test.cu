@@ -150,16 +150,16 @@ int main(int argc, char **argv)
 	start = 0; 
 	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
 
-	unsigned algorithm_choice;
+	/*unsigned algorithm_choice;
 	std::cout << "Choose which algorithms to run." << std::endl;
 	std::cout << "Add 1 for linear with atomics, 2 for edge_parallel, 4 for warp-based, 8 for scan-based, and 16 for shuffle based." << std::endl;
 	std::cin >> algorithm_choice;
-	std::bitset<8> alg(algorithm_choice);
+	std::bitset<8> alg(algorithm_choice);*/
 
 	std::vector< std::vector<int> > result;
 	bool pass;
 
-	if(alg[0])
+	/*if(alg[0])
 	{
 		result = multi_search_linear_atomics_setup(g_d,start,end);
 		if(op.verify)
@@ -209,10 +209,10 @@ int main(int argc, char **argv)
 				std::cout << "Scan based: Test passed." << std::endl;
 			}
 		}
-	}
+	}*/
 		
-	if(alg[4])
-	{
+	//if(alg[4])
+	//{
 		result = multi_search_shuffle_based_setup(g_d,start,end);
 		if(op.verify)
 		{
@@ -222,7 +222,7 @@ int main(int argc, char **argv)
 				std::cout << "Shuffle based: Test passed." << std::endl;
 			}
 		}
-	}
+	//}
 
 	/*result = multi_search_CTA_warp_based_setup(g_d,start,end);
 	pass = verify_multi_search(g_h,result,start,end);
