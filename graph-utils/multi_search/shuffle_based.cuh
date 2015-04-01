@@ -82,6 +82,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 
                 __shared__ int Q_len;
                 __shared__ int Q2_len;
+		__shared__ bool degree_zero_source;
 
                 if(j == 0)
                 {
@@ -89,8 +90,23 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                         Q_len = 1;
                         Q2_len = 0;
 			initStack(i);
+
+			if(R[i+1] == R[i])
+			{
+				degree_zero_source = true;
+			}
+			else
+			{
+				degree_zero_source = false;
+			}
                 }
                 __syncthreads();
+
+		//Don't waste time traversing vertices of degree zero
+		if(degree_zero_source)
+		{
+			continue;
+		}
 
                 while(1) //While a frontier exists for this source vertex...
                 {

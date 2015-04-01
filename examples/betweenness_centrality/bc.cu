@@ -113,7 +113,8 @@ void verify_delta(host_graph &g_h, std::vector< std::vector<float> > &result, in
 	std::cout << "RMS Error: " << rms_error << std::endl;
 	std::cout << "Maximum Error: " << max_error << std::endl;
 
-        if(max_error > 1.0f)
+	//Add a runtime flag to enable/disable this dump
+        /*if(max_error > 1.0f)
         {
 		std::cout << "Source with maximum error: " << wrong_source << std::endl;
                 for(int i=0; i<g_h.n; i++)
@@ -141,7 +142,7 @@ void verify_delta(host_graph &g_h, std::vector< std::vector<float> > &result, in
                         }
                 }
                 std::cout << "]" << std::endl;
-        }
+        }*/
 }
 
 int main(int argc, char **argv)
