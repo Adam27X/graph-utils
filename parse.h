@@ -6,6 +6,8 @@
 #include <vector>
 #include <fstream>
 #include <cstdlib>
+#include <algorithm>
+#include <iterator>
 
 #include "util.h"
 
@@ -35,3 +37,4 @@ public:
 host_graph parse(const program_options &op);
 host_graph parse_metis(char *file);
 host_graph parse_snap(char *file, bool header);
+host_graph parse_market(char *file);

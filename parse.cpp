@@ -101,6 +101,10 @@ host_graph parse(const program_options &op)
 	{
 		return parse_snap(op.infile,true);
 	}
+	else if(s == "market")
+	{
+		return parse_market(op.infile);
+	}
 	else
 	{
 		std::cerr << "Error: Unsupported file type." << std::endl;
@@ -199,6 +203,144 @@ host_graph parse_metis(char *file)
 	}
 
 	g.directed = false;
+
+	return g;
+}
+
+host_graph parse_market(char *file)
+{
+        host_graph g;
+
+        //Get n,m
+        std::ifstream metis(file,std::ifstream::in);
+        std::string line;
+        bool firstline = true;
+	bool self_edge_warned = false;
+
+        if(!metis.good())
+        {
+                std::cerr << "Error opening graph file." << std::endl;
+                exit(-1);
+        }
+
+        while(std::getline(metis,line))
+        {
+                if(line[0] == '%')
+                {
+                        continue;
+                }
+
+                std::vector<std::string> splitvec;
+
+                //Mimic boost::split to not have a huge dependency on boost for limited functionality
+		//TODO: Throw into a helper function for better reuse
+                std::string temp;
+                for(std::string::iterator i=line.begin(),e=line.end();i!=e;++i)
+                {
+                        if(((*i == '\t') || (*i == ' ')) && (!temp.empty()))
+                        {
+                                splitvec.push_back(temp);
+                                temp.clear();
+                        }
+                        else
+                        {
+                                temp.append(i,i+1);
+                        }
+                }
+
+                if(!temp.empty())
+                {
+                        splitvec.push_back(temp);
+                }
+
+                if(firstline)
+                {
+                        if(splitvec.size() != 3)
+                        {
+                                std::cerr << "Syntax error: The first non-comment line should include the number of rows, columns, and nonzeros in the adjacency matrix induced by the graph." << std::endl;
+                                exit(-2);
+                        }
+
+			int n = stoi(splitvec[0]);
+			int m = stoi(splitvec[1]);
+			int l = stoi(splitvec[2]);
+
+			if(n != m)
+			{
+				std::cerr << "Error: The adjacency matrix should be n by n" << std::endl;
+			}
+
+                        g.n = n;
+                        g.m = 2*l;
+                        firstline = false;
+                        g.R.resize(g.n+1);
+                }
+		else
+		{
+			if(splitvec.size() != 2)
+			{
+				std::cerr << "Syntax error: Only pattern matrices are accepted at this time." << std::endl;
+				std::cout << "Splitvec for offending line: " << std::endl;
+				std::copy(splitvec.begin(),splitvec.end(),std::ostream_iterator<std::string>(std::cout,"\n"));
+				exit(-2);
+			}
+
+			int u = stoi(splitvec[0])-1; //Mkt format indexes at 1 but we want 0-based indexing
+			int v = stoi(splitvec[1])-1;
+
+			if((u == v) && (!self_edge_warned))
+			{
+				std::cerr << "Warning: Self-edge detected. (" << u << "," << v << ")" << std::endl;
+				self_edge_warned = true;
+			}
+
+			//Add the edge (u,v)
+			g.F.push_back(u);
+			g.C.push_back(v);
+
+			//Add the edge (v,u)
+			g.F.push_back(v);
+			g.C.push_back(u);
+		}
+	}
+
+	//Could also store unique vertices seen and compare with g.R.size()-1, but not all vertices necessarily have an edge connected to them
+	if(g.F.size() != static_cast<unsigned>(g.m))
+	{
+		std::cerr << "Parsing error: Mismatch in the number of edges \n";
+		std::cerr << "Edges claimed from the first line: " << g.m << std::endl;
+		std::cerr << "Edges parsed: " << g.F.size() << std::endl;
+	}
+
+
+	//Need to sort by F to align edges
+	std::vector< std::pair<int,int> > edges(g.F.size());
+	
+	for(unsigned i=0; i<g.F.size(); ++i)
+	{
+		edges[i] = std::make_pair(g.F[i],g.C[i]);
+	}
+	std::sort(edges.begin(),edges.end());
+	for(unsigned i=0; i<g.F.size(); ++i)
+	{
+		g.F[i] = edges[i].first;
+		g.C[i] = edges[i].second;
+	}
+
+        g.R[0] = 0;
+        int last_node = 0;
+        for(int i=0; i<g.m; i++)
+        {
+                while((g.F[i] > last_node) && (last_node < (g.n+1)))
+                {
+                        g.R[++last_node] = i;
+                }
+        }
+
+        while(last_node < g.n)
+        {
+                g.R[++last_node] = g.m;
+        }
 
 	return g;
 }
