@@ -2,7 +2,9 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <unistd.h>
 #include <nvml.h>
+#include <future>
 #include "util.h"
 
 #ifndef checkCudaErrors
@@ -39,8 +41,10 @@ float end_clock(cudaEvent_t &start, cudaEvent_t &end);
 void choose_device(program_options &op);
 
 //Power sampling routines
-/*void *power_sample(void *period);
+//FIXME: This can be improved through the use a class with start/end member functions. 
+// Such a class can contain psample and future members, making the user's life easier
+double power_sample(int dev, long period);
 extern bool *psample;
 //Note: period is the sampling period in milliseconds
-void start_power_sample(program_options op, pthread_t &thread, long period);
-float end_power_sample(program_options op, pthread_t &thread);*/
+void start_power_sample(const program_options &op, std::future<double> &f, long period);
+double end_power_sample(const program_options &op, std::future<double> &f);

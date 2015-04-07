@@ -74,20 +74,53 @@ void choose_device(program_options &op)
 	std::cout << "Memory Bandwidth: " << memBandwidth << " GB/s " << std::endl;
 }
 
-/*void start_power_sample(program_options op, pthread_t &thread, long period)
+//Take a C++11 approach to power sampling
+void start_power_sample(const program_options &op, std::future<double> &f, long period)
 {
-        if(op.device != 0) //Could add an isTelsa flag, or use the NVML library directly to ensure that power can be measured from the GPU of interest
+        if(!op.isTesla) 
         {
                 std::cerr << "Warning: Power can only be measured for Tesla GPUs." << std::endl;
         }
         else
         {
-                //Spawn pthread for power measurement
-                psample = new bool;
-                *psample = true;
-                pthread_create(&thread, NULL, power_sample, (void*)period);
-                //std::cout << "Thread created." << std::endl;
-                //std::cout << "Psample in main: " << *psample << std::endl;
+		psample = new bool;
+		*psample = true;
+		f = std::async(std::launch::async,power_sample,op.device,period);
         }
-}*/
+}
 
+double end_power_sample(const program_options &op, std::future<double> &f)
+{
+        if(op.isTesla) 
+        {
+		cudaDeviceSynchronize();
+		*psample = false;
+		double ret = f.get(); //Make sure thread finishes before deleting psample
+		delete psample;
+		return ret;
+        }
+
+        return -1;
+}
+
+//This function assumes that NVML device IDs correspond to CUDA device IDs
+//TODO: Collect all samples as a reference to std::vector?
+double power_sample(int dev, long period)
+{
+	checkNVMLErrors(nvmlInit());
+	nvmlDevice_t nvml_dev;
+	checkNVMLErrors(nvmlDeviceGetHandleByIndex(dev,&nvml_dev));
+	unsigned int power;
+	unsigned int samples = 0;	
+	double avg_power = 0;
+	
+	while(*psample)
+	{
+		checkNVMLErrors(nvmlDeviceGetPowerUsage(nvml_dev,&power));
+		samples++;
+		avg_power += power/(double)1000; //Divide by 1000 to obtain power in Watts
+		usleep(period*1000);
+	}
+	avg_power = avg_power/(double)samples;
+	return avg_power;	
+}

@@ -12,6 +12,7 @@ program_options parse_arguments(int argc, char *argv[])
 		{"help",no_argument,0,'h'},
 		{"approx",required_argument,0,'k'},
 		{"infile",required_argument,0,'i'},
+		{"nvml",no_argument,0,'n'},
 		{"outfile",required_argument,0,'o'},
 		{"verify",no_argument,0,'v'},
 		{0,0,0,0} //Terminate with null
@@ -19,7 +20,7 @@ program_options parse_arguments(int argc, char *argv[])
 
 	int option_index = 0;
 
-	while((c = getopt_long(argc,argv,"d:f:hk:i:o:v",long_options,&option_index)) != -1)
+	while((c = getopt_long(argc,argv,"d:f:hk:i:no:v",long_options,&option_index)) != -1)
 	{
 		switch(c)
 		{
@@ -41,6 +42,10 @@ program_options parse_arguments(int argc, char *argv[])
 
 			case 'i':
 				op.infile = optarg;
+			break;
+
+			case 'n':
+				op.nvml = true;
 			break;
 
 			case 'o':

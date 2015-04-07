@@ -10,7 +10,7 @@
 class program_options
 {
 public:
-	program_options() : device(-1), infile(NULL), outfile(NULL), verify(false), approx(0), format(NULL), isTesla(false) {}
+	program_options() : device(-1), infile(NULL), outfile(NULL), verify(false), approx(0), format(NULL), isTesla(false), nvml(false) {}
 	
 	int device;
 	char *infile;
@@ -19,6 +19,7 @@ public:
 	int approx;
 	char *format;
 	bool isTesla;
+	bool nvml;
 };
 
 program_options parse_arguments(int argc, char *argv[]);

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <queue>
 #include <bitset>
+#include <future>
 
 #include "../../parse.h"
 #include "../../util.h"
@@ -11,6 +12,9 @@
 #include "../../graph-utils/multi_search/scan_based.cuh"
 #include "../../graph-utils/multi_search/CTA_warp.cuh"
 #include "../../graph-utils/multi_search/shuffle_based.cuh"
+
+//global variable for power measurement
+bool *psample;
 
 //This is essentially the APSP problem (same definition used by Aydin Buluc in PARCO, 2009.
 void sequential(host_graph &g_h, int source, std::vector<int> &expected)
@@ -213,7 +217,18 @@ int main(int argc, char **argv)
 		
 	//if(alg[4])
 	//{
-		result = multi_search_shuffle_based_setup(g_d,start,end);
+		if(op.nvml)
+		{
+			std::future<double> f;
+			start_power_sample(op,f,10);
+			result = multi_search_shuffle_based_setup(g_d,start,end);
+			double avg_power = end_power_sample(op,f);
+			std::cout << "Average power: " << avg_power << " W" << std::endl;	
+		}
+		else
+		{
+			result = multi_search_shuffle_based_setup(g_d,start,end);
+		}
 		if(op.verify)
 		{
 			pass = verify_multi_search(g_h,result,start,end);
