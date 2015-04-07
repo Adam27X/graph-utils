@@ -20,7 +20,7 @@ float end_clock(cudaEvent_t &start, cudaEvent_t &end)
 	return time/(float)1000;
 }
 
-void choose_device(const program_options &op)
+void choose_device(program_options &op)
 {
 	int count;
 	checkCudaErrors(cudaGetDeviceCount(&count));
@@ -60,6 +60,11 @@ void choose_device(const program_options &op)
 	double memBandwidth = (prop.memoryClockRate * 1000.0) * (prop.memoryBusWidth / 8 * 2) / 1.0e9;
 	int runtime_version;
 	checkCudaErrors(cudaRuntimeGetVersion(&runtime_version));
+	std::string dev_name(prop.name);
+	if(dev_name.find("Tesla") != std::string::npos)
+	{
+		op.isTesla = true;
+	}
 
 	std::cout << "CUDA Runtime Version: " << runtime_version << std::endl;
 	std::cout << "Chosen Device: " << prop.name << std::endl;
@@ -68,3 +73,21 @@ void choose_device(const program_options &op)
 	std::cout << "Size of Global Memory: " << (total_mem/(double)(1 << 30)) << " GB" << std::endl;
 	std::cout << "Memory Bandwidth: " << memBandwidth << " GB/s " << std::endl;
 }
+
+/*void start_power_sample(program_options op, pthread_t &thread, long period)
+{
+        if(op.device != 0) //Could add an isTelsa flag, or use the NVML library directly to ensure that power can be measured from the GPU of interest
+        {
+                std::cerr << "Warning: Power can only be measured for Tesla GPUs." << std::endl;
+        }
+        else
+        {
+                //Spawn pthread for power measurement
+                psample = new bool;
+                *psample = true;
+                pthread_create(&thread, NULL, power_sample, (void*)period);
+                //std::cout << "Thread created." << std::endl;
+                //std::cout << "Psample in main: " << *psample << std::endl;
+        }
+}*/
+
