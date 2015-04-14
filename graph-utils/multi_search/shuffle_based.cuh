@@ -47,7 +47,7 @@ __device__ __forceinline__ T* get_row(T* data, size_t p)
 
 //TODO: Generalize the beginning and endroutines for more flexibility. Push initialization into lambdas and, if necessary, reuse the lambdas. Use traits and provide default (likely null) values for some of the parameters
 template <class F1, class F2, class F3, class F4, class F5, class F6, class F7>
-__device__ void multi_search(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end, F1 getMax, F2 initLocal, F3 updateSigma, F4 initStack, F5 insertStack, F6 updateEndpoints, F7 dependencyAccum)
+__device__ void multi_search(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end, F1 getMax, F2 initLocal, F3 visitVertex, F4 initStack, F5 insertStack, F6 updateEndpoints, F7 dependencyAccum)
 {
         int j = threadIdx.x;
         int lane_id = getLaneId();
@@ -129,12 +129,14 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 				while(r < r_end) //Only some threads in each warp will execute this loop
 				{
 					int w = C[r];
-					if(atomicCAS(&d_row[w],INT_MAX,d_row[v]+1) == INT_MAX)
+					//atomics are only needed here when we're computing shortest path calculations
+					/*if(atomicCAS(&d_row[w],INT_MAX,d_row[v]+1) == INT_MAX)
 					{
 						int t = atomicAdd(&Q2_len,1);
 						Q2_row[t] = w;
-					}
-					updateSigma(d_row,v,w);
+					}*/
+					//updateSigma(d_row,v,w);
+					visitVertex(d_row,v,w,Q2_row,&Q2_len);
 
 					r += WARP_SIZE;
 				}	

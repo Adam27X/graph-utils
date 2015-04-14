@@ -49,9 +49,22 @@ __global__ void multi_search_shuffle_based(const int *R, const int *C, const int
         auto null_lamb_1 = [](int){}; //A bit ugly, but it works
 	auto null_lamb_2 = [](int,int){};
 	auto null_lamb_3 = [](int*,int){};
-	auto null_lamb_4 = [](int*,int,int){};
+	//auto null_lamb_4 = [](int*,int,int){};
 	auto null_lamb_5 = [](int*,int,int,int){};
-        multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,null_lamb_2,null_lamb_4,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
+
+	//Since users need to handle this, we can provide default policies or clean up the Queueing interface
+	auto visit_vertex_lamb = [] (int *d_row, int v, int w, int *Q2_row, int *Q2_len) //Pass in a pointer to shared memory for Q2_len. Note the lack of an & on the call to atomicAdd
+	{
+		//This can potentially allow for duplication (race conditions are evil...). Duplication will not invalidate results.
+		if(d_row[w] == INT_MAX)
+		{
+			d_row[w] = d_row[v]+1;
+			int t = atomicAdd(Q2_len,1);
+			Q2_row[t] = w;
+		}
+	};
+
+        multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,null_lamb_2,visit_vertex_lamb,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
 __global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, int *max, const pitch p, const int start, const int end)
@@ -67,10 +80,22 @@ __global__ void diameter_sampling(const int *R, const int *C, const int n, int *
 	auto null_lamb_1 = [](int){};
 	auto null_lamb_2 = [](int,int){};
 	auto null_lamb_3 = [](int*,int){};
-	auto null_lamb_4 = [](int*,int,int){};
+	//auto null_lamb_4 = [](int*,int,int){};
 	auto null_lamb_5 = [](int*,int,int,int){};
 
-        multi_search(R,C,n,d,Q,Q2,p,start,end,max_lamb,null_lamb_2,null_lamb_4,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
+	//Again, we only care about distance so we can safely avoid atomics
+	auto visit_vertex_lamb = [] (int *d_row, int v, int w, int *Q2_row, int *Q2_len)
+	{
+		//This can potentially allow for duplication (race conditions are evil...). Duplication will not invalidate results.
+		if(d_row[w] == INT_MAX)
+		{
+			d_row[w] = d_row[v]+1;
+			int t = atomicAdd(Q2_len,1);
+			Q2_row[t] = w;
+		}
+	};
+
+        multi_search(R,C,n,d,Q,Q2,p,start,end,max_lamb,null_lamb_2,visit_vertex_lamb,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
 __global__ void count_shortest_paths(const int *R, const int *C, const int n, int *d, unsigned long long *sigma, int *Q, int *Q2, const pitch p, const int start, const int end)
@@ -90,8 +115,13 @@ __global__ void count_shortest_paths(const int *R, const int *C, const int n, in
 		}
 	};
 
-	auto update_sigma_row = [sigma,p] (int *d_row, int v, int w)
+	auto visit_vertex_lamb = [sigma,p] (int *d_row, int v, int w, int *Q2_row, int *Q2_len)
 	{
+		if(atomicCAS(&d_row[w],INT_MAX,d_row[v]+1) == INT_MAX)
+		{
+			int t = atomicAdd(Q2_len,1);
+			Q2_row[t] = w;
+		}
 		if(d_row[w] == (d_row[v]+1))
 		{
 			auto sigma_row = get_row(sigma,p.sigma); //In theory this needs to be called every iteration on i if we're going to store all of the results
@@ -102,10 +132,10 @@ __global__ void count_shortest_paths(const int *R, const int *C, const int n, in
 	auto null_lamb_1 = [](int){};
 	auto null_lamb_2 = [](int,int){};
 	auto null_lamb_3 = [](int*,int){};
-	auto null_lamb_4 = [](int*,int,int){};
+	//auto null_lamb_4 = [](int*,int,int){};
 	auto null_lamb_5 = [](int*,int,int,int){};
 
-	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_row,update_sigma_row,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
+	multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_row,visit_vertex_lamb,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
 #define DSAMPLE 210
@@ -146,8 +176,13 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		endpoints_len = 2;
 	};
 
-	auto update_sigma_row = [&sigma_row] (int *d_row, int v, int w)
+	auto visit_vertex_lamb = [&sigma_row] (int *d_row, int v, int w, int *Q2_row, int *Q2_len)
 	{
+                if(atomicCAS(&d_row[w],INT_MAX,d_row[v]+1) == INT_MAX)
+                {
+                        int t = atomicAdd(Q2_len,1);
+                        Q2_row[t] = w;
+                }
 		if(d_row[w] == (d_row[v]+1))
 		{
 			atomicAdd(&sigma_row[w],sigma_row[v]);
@@ -455,7 +490,7 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 	if((end-start) > diameter_samples)
 	{
 		//Two calls: One that goes from [start,DIAMETER_SAMPLES) and another from [DIAMETER_SAMPLES,end). 
-		multi_search(R,C,n,d,Q,Q2,p,start,diameter_samples,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
+		multi_search(R,C,n,d,Q,Q2,p,start,diameter_samples,null_lamb_1,init_sigma_delta,visit_vertex_lamb,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
 		__shared__ int diameter;
 		if(threadIdx.x==0)
 		{
@@ -481,28 +516,39 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		__syncthreads();
 		if(diameter < 4*log2n)
 		{
-			multi_search(R,C,n,d,Q,Q2,p,diameter_samples,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation);
+			multi_search(R,C,n,d,Q,Q2,p,diameter_samples,end,null_lamb_1,init_sigma_delta,visit_vertex_lamb,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation);
 		}
 		else
 		{
-			multi_search(R,C,n,d,Q,Q2,p,diameter_samples,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
+			multi_search(R,C,n,d,Q,Q2,p,diameter_samples,end,null_lamb_1,init_sigma_delta,visit_vertex_lamb,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
 		}
 	}
 	else
 	{
-		multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
+		multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,visit_vertex_lamb,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation_work_eff);
 	}
-
-	//Completely async dep accum
-	//multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,init_sigma_delta,update_sigma_row,init_S_endpoints,insert_stack,update_endpoints,dependency_accumulation);
 }
 
+//Currently this is the same as multi_search itself, but we may want to change things around here
 __global__ void transitive_closure(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end)
 {
         auto null_lamb_1 = [](int){}; //A bit ugly, but it works
         auto null_lamb_2 = [](int,int){};
         auto null_lamb_3 = [](int*,int){};
-        auto null_lamb_4 = [](int*,int,int){};
+        //auto null_lamb_4 = [](int*,int,int){};
         auto null_lamb_5 = [](int*,int,int,int){};
-        multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,null_lamb_2,null_lamb_4,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
+
+        //Since users need to handle this, we can provide default policies or clean up the Queueing interface
+        auto visit_vertex_lamb = [] (int *d_row, int v, int w, int *Q2_row, int *Q2_len)
+        {
+                //This can potentially allow for duplication (race conditions are evil...). Duplication will not invalidate results.
+                if(d_row[w] == INT_MAX)
+                {
+                        d_row[w] = d_row[v]+1;
+                        int t = atomicAdd(Q2_len,1);
+                        Q2_row[t] = w;
+                }
+        };
+
+        multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,null_lamb_2,visit_vertex_lamb,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }

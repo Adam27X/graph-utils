@@ -16,8 +16,10 @@ program_CU_OBJS := ${program_CU_SRCS:.cu=.cuo}
 
 program_INCLUDE_DIRS := . ../../ ../../graph-utils/multi_search/ ../../graph-utils/multi_search/betweenness_centrality/ /usr/local/cuda-7.0/include/ ../../graph-utils
 program_CU_INCLUDE_DIRS := /home/users/amclaugh/CUB/cub-1.3.2/
+program_LIBRARIES := nvidia-ml
 CPPFLAGS += $(foreach includedir,$(program_INCLUDE_DIRS),-I$(includedir))
 CXXFLAGS += -g -O3 -std=c++11 -Wall -pedantic
+LDADD += $(foreach library,$(program_LIBRARIES),-l$(library))
 
 GEN_SM35 := -gencode=arch=compute_35,code=\"sm_35,compute_35\"
 GEN_SM20 := -gencode=arch=compute_20,code=\"sm_20,compute_20\"
@@ -43,14 +45,14 @@ debug: $(BC)
 
 # Rule for compilation of CUDA source (C++ source can be handled automatically)
 %.cuo: %.cu 
-	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ -dc $<
+	nvcc $(NVFLAGS) $(CPPFLAGS) $(LDADD) -o $@ -dc $<
 
 $(BC): $(OBJECTS) 
 	@ for cu_obj in $(program_CU_OBJS); \
 	do				\
 		mv $$cu_obj $$cu_obj.o; \
 	done				#append a .o suffix for nvcc
-	nvcc $(NVFLAGS) $(CPPFLAGS) -o $@ $(program_CXX_OBJS) $(CUO_O_OBJECTS)
+	nvcc $(NVFLAGS) $(CPPFLAGS) $(LDADD) -o $@ $(program_CXX_OBJS) $(CUO_O_OBJECTS)
 	@ for cu_obj in $(CUO_O_OBJECTS); 	\
 	do					\
 		mv $$cu_obj $${cu_obj%.*};	\
