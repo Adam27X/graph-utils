@@ -129,13 +129,8 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 				while(r < r_end) //Only some threads in each warp will execute this loop
 				{
 					int w = C[r];
+
 					//atomics are only needed here when we're computing shortest path calculations
-					/*if(atomicCAS(&d_row[w],INT_MAX,d_row[v]+1) == INT_MAX)
-					{
-						int t = atomicAdd(&Q2_len,1);
-						Q2_row[t] = w;
-					}*/
-					//updateSigma(d_row,v,w);
 					visitVertex(d_row,v,w,Q2_row,&Q2_len);
 
 					r += WARP_SIZE;

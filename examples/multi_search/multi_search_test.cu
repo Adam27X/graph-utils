@@ -152,7 +152,15 @@ int main(int argc, char **argv)
 	device_graph g_d(g_h);
 	int start,end;
 	start = 0; 
-	end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
+	if(op.approx)
+	{
+		end = (op.approx > g_h.n) ? g_h.n : op.approx;
+	}
+	else
+	{
+		end = (1024 > g_h.n) ? g_h.n : g_h.n; //Some multiple of the number of SMs for now
+	}
+	std::cout << "Number of source vertices traversed: " << end-start << std::endl;
 
 	/*unsigned algorithm_choice;
 	std::cout << "Choose which algorithms to run." << std::endl;
