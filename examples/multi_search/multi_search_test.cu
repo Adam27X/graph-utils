@@ -14,7 +14,7 @@
 #include "../../graph-utils/multi_search/shuffle_based.cuh"
 
 //global variable for power measurement
-bool *psample;
+//bool *psample;
 
 //This is essentially the APSP problem (same definition used by Aydin Buluc in PARCO, 2009.
 void sequential(host_graph &g_h, int source, std::vector<int> &expected)
@@ -162,16 +162,16 @@ int main(int argc, char **argv)
 	}
 	std::cout << "Number of source vertices traversed: " << end-start << std::endl;
 
-	/*unsigned algorithm_choice;
+	unsigned algorithm_choice;
 	std::cout << "Choose which algorithms to run." << std::endl;
 	std::cout << "Add 1 for linear with atomics, 2 for edge_parallel, 4 for warp-based, 8 for scan-based, and 16 for shuffle based." << std::endl;
 	std::cin >> algorithm_choice;
-	std::bitset<8> alg(algorithm_choice);*/
+	std::bitset<8> alg(algorithm_choice);
 
 	std::vector< std::vector<int> > result;
 	bool pass;
 
-	/*if(alg[0])
+	if(alg[0])
 	{
 		result = multi_search_linear_atomics_setup(g_d,start,end);
 		if(op.verify)
@@ -197,7 +197,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if(alg[2])
+	/*if(alg[2])
 	{
 		result = multi_search_warp_based_setup(g_d,start,end);
 		if(op.verify)
@@ -223,14 +223,14 @@ int main(int argc, char **argv)
 		}
 	}*/
 		
-	//if(alg[4])
-	//{
+	if(alg[4])
+	{
 		if(op.nvml)
 		{
-			std::future<double> f;
-			start_power_sample(op,f,10);
+			power_measurer pmes(10,op);
+			pmes.start_power_sample();
 			result = multi_search_shuffle_based_setup(g_d,start,end);
-			double avg_power = end_power_sample(op,f);
+			double avg_power = pmes.end_power_sample();
 			std::cout << "Average power: " << avg_power << " W" << std::endl;	
 		}
 		else
@@ -245,7 +245,7 @@ int main(int argc, char **argv)
 				std::cout << "Shuffle based: Test passed." << std::endl;
 			}
 		}
-	//}
+	}
 
 	/*result = multi_search_CTA_warp_based_setup(g_d,start,end);
 	pass = verify_multi_search(g_h,result,start,end);

@@ -75,28 +75,26 @@ void choose_device(program_options &op)
 }
 
 //Take a C++11 approach to power sampling
-void start_power_sample(const program_options &op, std::future<double> &f, long period)
+void power_measurer::start_power_sample()
 {
-        if(!op.isTesla) 
+        if(!isTesla) 
         {
                 std::cerr << "Warning: Power can only be measured for Tesla GPUs." << std::endl;
         }
         else
         {
-		psample = new bool;
-		*psample = true;
-		f = std::async(std::launch::async,power_sample,op.device,period);
+		psample = true;
+		f = std::async(std::launch::async,&power_measurer::power_sample,this,device,period);
         }
 }
 
-double end_power_sample(const program_options &op, std::future<double> &f)
+double power_measurer::end_power_sample()
 {
-        if(op.isTesla) 
+        if(isTesla) 
         {
 		cudaDeviceSynchronize();
-		*psample = false;
+		psample = false;
 		double ret = f.get(); //Make sure thread finishes before deleting psample
-		delete psample;
 		return ret;
         }
 
@@ -105,7 +103,7 @@ double end_power_sample(const program_options &op, std::future<double> &f)
 
 //This function assumes that NVML device IDs correspond to CUDA device IDs
 //TODO: Collect all samples as a reference to std::vector?
-double power_sample(int dev, long period)
+double power_measurer::power_sample(int dev, long period)
 {
 	checkNVMLErrors(nvmlInit());
 	nvmlDevice_t nvml_dev;
@@ -114,7 +112,7 @@ double power_sample(int dev, long period)
 	unsigned int samples = 0;	
 	double avg_power = 0;
 	
-	while(*psample)
+	while(psample)
 	{
 		checkNVMLErrors(nvmlDeviceGetPowerUsage(nvml_dev,&power));
 		samples++;

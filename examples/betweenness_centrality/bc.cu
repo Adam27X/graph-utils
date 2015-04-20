@@ -8,10 +8,6 @@
 #include "../../device_graph.h"
 #include "../../graph-utils/multi_search/betweenness_centrality/betweenness_centrality.cuh"
 
-//TODO: Throw this into a class
-//global variable for power measurement
-bool *psample;
-
 void sequential(host_graph &g_h, int source, std::vector<int> &expected, std::vector<float> &delta)
 {
 	std::queue<int> Q;
