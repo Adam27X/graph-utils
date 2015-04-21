@@ -43,6 +43,7 @@ void choose_device(program_options &op)
 		}
 		checkCudaErrors(cudaSetDevice(bestdev));
 		checkCudaErrors(cudaGetDeviceProperties(&prop,bestdev));
+		op.device = bestdev; //Set device for later use
 	}
 	else if((op.device < -1) || (op.device >= count))
 	{
