@@ -13,7 +13,7 @@
 #include "../race_and_resolve.cuh"
 #include "../load_balanced_search.cuh"
 
-std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_graph &g, int start, int end);
+std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_graph &g, const program_options &op, int start, int end);
 
 // How to adjust this algorithm to easily extend to the following problems:
 // Diameter sampling (needs a global variable for keeping track of the maximum distance seen from each source)
@@ -154,11 +154,23 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                         }
                         else
                         {
-                                for(int kk=threadIdx.x; kk<Q2_len; kk+=blockDim.x)
+                                /*for(int kk=threadIdx.x; kk<Q2_len; kk+=blockDim.x)
                                 {
                                         Q_row[kk] = Q2_row[kk];
 					insertStack(Q2_row,kk);
-                                }
+                                }*/
+				//Try swapping pointers instead
+				for(int kk=threadIdx.x; kk<Q2_len; kk+=blockDim.x)
+				{
+					insertStack(Q2_row,kk);
+				}
+				__syncthreads();
+				if(j == 0)
+				{
+					int *tmp = Q_row;
+					Q_row = Q2_row;
+					Q2_row = tmp;
+				}
                                 __syncthreads();
 
                                 if(j==0)

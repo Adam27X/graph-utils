@@ -178,8 +178,19 @@ int main(int argc, char **argv)
 	}
 	std::cout << "Number of source vertices traversed: " << end-start << std::endl;
 
-	std::vector< std::vector<float> > result;	
-	betweenness_centrality_setup(g_d,start,end,result);
+	std::vector< std::vector<float> > result;
+	if(op.nvml)
+	{
+		power_measurer pmes(10,op);
+		pmes.start_power_sample();
+		betweenness_centrality_setup(g_d,start,end,result);
+		double avg_power = pmes.end_power_sample();
+		std::cout << "Average power: " << avg_power << " W" << std::endl;
+	}
+	else
+	{	
+		betweenness_centrality_setup(g_d,start,end,result);
+	}
 	if(op.verify)
 	{
 		verify_delta(g_h,result,start,end);

@@ -170,7 +170,18 @@ int main(int argc, char **argv)
 
 	if(alg[0])
 	{
-		result = multi_search_linear_atomics_setup(g_d,start,end);
+		if(op.nvml)
+		{
+			power_measurer pmes(10,op);
+			pmes.start_power_sample();
+			result = multi_search_linear_atomics_setup(g_d,start,end);
+			double avg_power = pmes.end_power_sample();
+			std::cout << "Average power: " << avg_power << " W" << std::endl;	
+		}
+		else
+		{
+			result = multi_search_linear_atomics_setup(g_d,start,end);
+		}
 		if(op.verify)
 		{
 			pass = verify_multi_search(g_h,result,start,end);
@@ -183,7 +194,18 @@ int main(int argc, char **argv)
 
 	if(alg[1])
 	{
-		result = multi_search_edge_parallel_setup(g_d,start,end);
+		if(op.nvml)
+		{
+			power_measurer pmes(10,op);
+			pmes.start_power_sample();
+			result = multi_search_edge_parallel_setup(g_d,start,end);
+			double avg_power = pmes.end_power_sample();
+			std::cout << "Average power: " << avg_power << " W" << std::endl;	
+		}
+		else
+		{
+			result = multi_search_edge_parallel_setup(g_d,start,end);
+		}
 		if(op.verify)
 		{
 			pass = verify_multi_search(g_h,result,start,end);
@@ -226,13 +248,13 @@ int main(int argc, char **argv)
 		{
 			power_measurer pmes(10,op);
 			pmes.start_power_sample();
-			result = multi_search_shuffle_based_setup(g_d,start,end);
+			result = multi_search_shuffle_based_setup(g_d,op,start,end);
 			double avg_power = pmes.end_power_sample();
 			std::cout << "Average power: " << avg_power << " W" << std::endl;	
 		}
 		else
 		{
-			result = multi_search_shuffle_based_setup(g_d,start,end);
+			result = multi_search_shuffle_based_setup(g_d,op,start,end);
 		}
 		if(op.verify)
 		{
