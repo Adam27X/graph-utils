@@ -91,7 +91,7 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
                         Q2_len = 0;
 			initStack(i);
 
-			if(R[i+1] == R[i])
+			if(__ldg(&R[i+1]) == __ldg(&R[i]))
 			{
 				degree_zero_source = true;
 			}
@@ -123,12 +123,12 @@ __device__ void multi_search(const int *R, const int *C, const int n, int *d, in
 			while(k < Q_len) //Some warps will execute this loop, some won't. When a warp does, all threads in the warp do.
 			{
 				int v = Q_row[k];
-				int r = R[v] + lane_id;
-				int r_end = R[v+1];
+				int r = __ldg(&R[v]) + lane_id;
+				int r_end = __ldg(&R[v+1]);
 
 				while(r < r_end) //Only some threads in each warp will execute this loop
 				{
-					int w = C[r];
+					int w = __ldg(&C[r]);
 
 					//atomics are only needed here when we're computing shortest path calculations
 					visitVertex(d_row,v,w,Q2_row,&Q2_len);
