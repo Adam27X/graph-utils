@@ -119,7 +119,12 @@ double power_measurer::power_sample(int dev, long period)
 		samples++;
 		avg_power += power/(double)1000; //Divide by 1000 to obtain power in Watts
 		usleep(period*1000);
+		/*if(samples % 100 == 0)
+		{
+			std::cout << "Sample #" << samples << ": " << power/(double)1000 << " W" << std::endl;
+		}*/
 	}
 	avg_power = avg_power/(double)samples;
+	checkNVMLErrors(nvmlShutdown());
 	return avg_power;	
 }
