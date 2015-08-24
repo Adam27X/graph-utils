@@ -11,7 +11,7 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 
 	//Device pointers
 	int *d_d, *Q_d, *Q2_d;
-	//size_t pitch_d, pitch_Q, pitch_Q2;
+	int *Q_small_d, *Q2_small_d;
 	pitch p;
 	cudaEvent_t start_event, end_event;
 
@@ -21,16 +21,21 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 	checkCudaErrors(cudaMallocPitch((void**)&Q_d,&p.Q,sizeof(int)*g.n,dimGrid.x));
 	checkCudaErrors(cudaMallocPitch((void**)&Q2_d,&p.Q2,sizeof(int)*g.n,dimGrid.x));
 
+	checkCudaErrors(cudaMallocPitch((void**)&Q_small_d,&p.Q_small,sizeof(int)*g.n,dimGrid.x));
+	checkCudaErrors(cudaMallocPitch((void**)&Q2_small_d,&p.Q2_small,sizeof(int)*g.n,dimGrid.x));
+
         size_t GPU_memory_requirement = sizeof(int)*g.n*sources_to_store + 2*sizeof(int)*g.n*dimGrid.x + sizeof(int)*(g.n+1) + sizeof(int)*(g.m);
         std::cout << "Shuffle based memory requirement: " << GPU_memory_requirement/(1 << 20) << " MB" << std::endl;
 
-	multi_search_shuffle_based<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,Q_d,Q2_d,p,start,end);
+	multi_search_shuffle_based<<<dimGrid,dimBlock>>>(thrust::raw_pointer_cast(g.R.data()),thrust::raw_pointer_cast(g.C.data()),g.n,d_d,Q_d,Q2_d,Q_small_d,Q2_small_d,p,start,end);
 	checkCudaErrors(cudaPeekAtLastError());
 
         std::vector< std::vector<int> > d_host_vector;
         transfer_result(g,d_d,p.d,sources_to_store,d_host_vector);
 
 	//Free algorithm-specific memory
+	checkCudaErrors(cudaFree(Q2_small_d));
+	checkCudaErrors(cudaFree(Q_small_d));
 	checkCudaErrors(cudaFree(Q2_d));
 	checkCudaErrors(cudaFree(Q_d));
 	checkCudaErrors(cudaFree(d_d));
@@ -41,10 +46,9 @@ std::vector< std::vector<int> > multi_search_shuffle_based_setup(const device_gr
 	return d_host_vector;
 }
 
-
 //TODO: Move lambdas to a global space so that they can be reused (and rename them appropriately)
 //Wrappers
-__global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, const pitch p, const int start, const int end)
+__global__ void multi_search_shuffle_based(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, int *Q_small, int *Q2_small, const pitch p, const int start, const int end)
 {
         auto null_lamb_1 = [](int){}; //A bit ugly, but it works
 	auto null_lamb_2 = [](int,int){};
@@ -53,21 +57,29 @@ __global__ void multi_search_shuffle_based(const int *R, const int *C, const int
 	auto null_lamb_5 = [](int*,int,int,int){};
 
 	//Since users need to handle this, we can provide default policies or clean up the Queueing interface
-	auto visit_vertex_lamb = [] (int *d_row, int v, int w, int *Q2_row, int *Q2_len) //Pass in a pointer to shared memory for Q2_len. Note the lack of an & on the call to atomicAdd
+	auto visit_vertex_lamb = [R] (int *d_row, int v, int w, int *Q2_row, int *Q2_len, int *Q2_small_row, int *Q2_small_len) //Pass in a pointer to shared memory for Q2_len. Note the lack of an & on the call to atomicAdd
 	{
 		//This can potentially allow for duplication (race conditions are evil...). Duplication will not invalidate results.
 		if(d_row[w] == INT_MAX)
 		{
 			d_row[w] = d_row[v]+1;
-			int t = atomicAdd(Q2_len,1);
-			Q2_row[t] = w;
+			if(outdegree(w,R) < Q_THRESHOLD)
+			{
+				int t = atomicAdd(Q2_small_len,1);	
+				Q2_small_row[t] = w;
+			}
+			else
+			{
+				int t = atomicAdd(Q2_len,1);
+				Q2_row[t] = w;
+			}
 		}
 	};
 
-        multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,null_lamb_2,visit_vertex_lamb,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
+        multi_search(R,C,n,d,Q,Q2,Q_small,Q2_small,p,start,end,null_lamb_1,null_lamb_2,visit_vertex_lamb,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
 }
 
-__global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, int *max, const pitch p, const int start, const int end)
+/*__global__ void diameter_sampling(const int *R, const int *C, const int n, int *d, int *Q, int *Q2, int *max, const pitch p, const int start, const int end)
 {
         auto max_lamb = [max](int v) //Using a separate variable for kinder syntax highlighting in vim
         {
@@ -255,78 +267,78 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 			}
 			__syncthreads();
 
-			/*if(k < depth_size)
-			{
-				w = S_row[k+endpoints_row[current_depth]];
-				r = R[w];
-				r_end = R[w+1];
-			}
-			else
-			{
-				w = -1;
-				r = 0;
-				r_end = 0;
-			}
+			//if(k < depth_size)
+			//{
+			//	w = S_row[k+endpoints_row[current_depth]];
+			//	r = R[w];
+			//	r_end = R[w+1];
+			//}
+			//else
+			//{
+			//	w = -1;
+			//	r = 0;
+			//	r_end = 0;
+			//}
 
-			while(1)
-			{
+			//while(1)
+			//{
 
-				while(__any(r_end-r))
-				{
-					//Vie for control of warp
-					int winner = race_and_resolve_warp(r_end-r);
+			//	while(__any(r_end-r))
+			//	{
+			//		//Vie for control of warp
+			//		int winner = race_and_resolve_warp(r_end-r);
 
-					//Strip mine winner's adjlist
-					int r_gather = __shfl(r,winner) + lane_id;
-					int r_gather_end = __shfl(r_end,winner);
-					int w_new = __shfl(w,winner);
-					unsigned long long sw = sigma_row[w_new];
-					float dsw = 0.0;
-					while(r_gather < r_gather_end)
-					{
-						int v = C[r_gather];
-						if(d_row[v] == (d_row[w_new]+1))
-						{
-							dsw += (sw/(float)sigma_row[v])*(1.0f+delta_row[v]);
-						}
-						r_gather += WARP_SIZE;
-					}
+			//		//Strip mine winner's adjlist
+			//		int r_gather = __shfl(r,winner) + lane_id;
+			//		int r_gather_end = __shfl(r_end,winner);
+			//		int w_new = __shfl(w,winner);
+			//		unsigned long long sw = sigma_row[w_new];
+			//		float dsw = 0.0;
+			//		while(r_gather < r_gather_end)
+			//		{
+			//			int v = C[r_gather];
+			//			if(d_row[v] == (d_row[w_new]+1))
+			//			{
+			//				dsw += (sw/(float)sigma_row[v])*(1.0f+delta_row[v]);
+			//			}
+			//			r_gather += WARP_SIZE;
+			//		}
 
-					typedef cub::WarpReduce<float> WarpReduceFloat;
-					__shared__ typename WarpReduceFloat::TempStorage temp_storage[32]; //Temporary storage for each warp - 32 is max warps per block
-					float dsw_agg = WarpReduceFloat(temp_storage[threadIdx.x/32]).Sum(dsw);
-					if(lane_id == 0)
-					{
-						delta_row[w_new] += dsw_agg;
-					}
+			//		typedef cub::WarpReduce<float> WarpReduceFloat;
+			//		__shared__ typename WarpReduceFloat::TempStorage temp_storage[32]; //Temporary storage for each warp - 32 is max warps per block
+			//		float dsw_agg = WarpReduceFloat(temp_storage[threadIdx.x/32]).Sum(dsw);
+			//		if(lane_id == 0)
+			//		{
+			//			delta_row[w_new] += dsw_agg;
+			//		}
 
-					if(winner == lane_id) //Same thread cannot win twice
-					{
-						r = 0;
-						r_end = 0;
-					}
-				}
+			//		if(winner == lane_id) //Same thread cannot win twice
+			//		{
+			//			r = 0;
+			//			r_end = 0;
+			//		}
+			//	}
 
-				k+=blockDim.x;
-				if(k < depth_size)
-				{
-					w = S_row[k+endpoints_row[current_depth]];
-					r = R[w];
-					r_end = R[w+1];
-				}
-				else
-				{
-					w = -1;
-					r = 0;
-					r_end = 0;
-				}
+			//	k+=blockDim.x;
+			//	if(k < depth_size)
+			//	{
+			//		w = S_row[k+endpoints_row[current_depth]];
+			//		r = R[w];
+			//		r_end = R[w+1];
+			//	}
+			//	else
+			//	{
+			//		w = -1;
+			//		r = 0;
+			//		r_end = 0;
+			//	}
 
-				if((k-threadIdx.x) >= depth_size) //If thread 0 has no work, the entire block is done
-				{
-					break;
-				}
-			}
-			__syncthreads();*/
+			//	if((k-threadIdx.x) >= depth_size) //If thread 0 has no work, the entire block is done
+			//	{
+			//		break;
+			//	}
+			//}
+			//__syncthreads();
 
 			if(j == 0)
 			{
@@ -428,62 +440,62 @@ __global__ void betweenness_centrality(const int *R, const int *C, const int *F,
 		}
 	};
 
-	/*auto dependency_accumulation_lbs = [p,&S_len,&endpoints_len,&current_depth,d,bc,R,C,n,edge_frontier_size,edge_counts,scanned_edges,LBS,&S_row,&endpoints_row,&sigma_row,&delta_row] (int *d_row, int i, int j, int lane_id)
-	{
-		//Set current depth
-		__shared__ int *edge_counts_row;
-		__shared__ int *scanned_edges_row;
-		__shared__ int *LBS_row;
-		if(j == 0)
-		{
-			edge_counts_row = get_row(edge_counts,p.edge_counts);
-			scanned_edges_row = get_row(scanned_edges,p.scanned_edges);
-			LBS_row = get_row(LBS,p.LBS);
-			current_depth = d_row[S_row[S_len-1]] - 1;
-		}
-		__syncthreads();
+	//auto dependency_accumulation_lbs = [p,&S_len,&endpoints_len,&current_depth,d,bc,R,C,n,edge_frontier_size,edge_counts,scanned_edges,LBS,&S_row,&endpoints_row,&sigma_row,&delta_row] (int *d_row, int i, int j, int lane_id)
+	//{
+	//	//Set current depth
+	//	__shared__ int *edge_counts_row;
+	//	__shared__ int *scanned_edges_row;
+	//	__shared__ int *LBS_row;
+	//	if(j == 0)
+	//	{
+	//		edge_counts_row = get_row(edge_counts,p.edge_counts);
+	//		scanned_edges_row = get_row(scanned_edges,p.scanned_edges);
+	//		LBS_row = get_row(LBS,p.LBS);
+	//		current_depth = d_row[S_row[S_len-1]] - 1;
+	//	}
+	//	__syncthreads();
 
-		while(current_depth > 0)
-		{
-			__shared__ int vertex_frontier_size;
-		       	if(j == 0)
-			{
-				vertex_frontier_size = endpoints_row[current_depth+1]-endpoints_row[current_depth];
-			}
-			__syncthreads();
-			//Fill in edge counts
-			for(int kk=threadIdx.x; kk<vertex_frontier_size; kk+=blockDim.x)
-			{
-				int w = S_row[kk+endpoints_row[current_depth]]; 
-				edge_counts_row[kk] = R[w+1]-R[w]; 
-			}
-			__syncthreads();
-			load_balance_search_block(vertex_frontier_size,&edge_frontier_size[blockIdx.x],edge_counts_row,scanned_edges_row,LBS_row);
-			__syncthreads();
-			for(int kk=threadIdx.x; kk<edge_frontier_size[blockIdx.x]; kk+=blockDim.x)
-			{
-				int w = S_row[LBS_row[kk]+endpoints_row[current_depth]];
-				int rank = kk - scanned_edges_row[LBS_row[kk]];
-				int v = C[R[w]+rank];
-				if(d_row[v] == (d_row[w]+1))
-				{
-					float change = ((float)sigma_row[w]/(float)sigma_row[v])*(1.0f+delta_row[v]);
-					atomicAdd(&delta_row[w],change);
-				}
-			}
-			__syncthreads();
-			if(j == 0)
-			{
-				current_depth--;
-			}
-			__syncthreads();
-		}
+	//	while(current_depth > 0)
+	//	{
+	//		__shared__ int vertex_frontier_size;
+	//	       	if(j == 0)
+	//		{
+	//			vertex_frontier_size = endpoints_row[current_depth+1]-endpoints_row[current_depth];
+	//		}
+	//		__syncthreads();
+	//		//Fill in edge counts
+	//		for(int kk=threadIdx.x; kk<vertex_frontier_size; kk+=blockDim.x)
+	//		{
+	//			int w = S_row[kk+endpoints_row[current_depth]]; 
+	//			edge_counts_row[kk] = R[w+1]-R[w]; 
+	//		}
+	//		__syncthreads();
+	//		load_balance_search_block(vertex_frontier_size,&edge_frontier_size[blockIdx.x],edge_counts_row,scanned_edges_row,LBS_row);
+	//		__syncthreads();
+	//		for(int kk=threadIdx.x; kk<edge_frontier_size[blockIdx.x]; kk+=blockDim.x)
+	//		{
+	//			int w = S_row[LBS_row[kk]+endpoints_row[current_depth]];
+	//			int rank = kk - scanned_edges_row[LBS_row[kk]];
+	//			int v = C[R[w]+rank];
+	//			if(d_row[v] == (d_row[w]+1))
+	//			{
+	//				float change = ((float)sigma_row[w]/(float)sigma_row[v])*(1.0f+delta_row[v]);
+	//				atomicAdd(&delta_row[w],change);
+	//			}
+	//		}
+	//		__syncthreads();
+	//		if(j == 0)
+	//		{
+	//			current_depth--;
+	//		}
+	//		__syncthreads();
+	//	}
 
-		for(int kk=threadIdx.x; kk<n; kk+=blockDim.x)
-		{
-			atomicAdd(&bc[kk],delta_row[kk]);
-		}
-	};*/
+	//	for(int kk=threadIdx.x; kk<n; kk+=blockDim.x)
+	//	{
+	//		atomicAdd(&bc[kk],delta_row[kk]);
+	//	}
+	//};
         
 	auto null_lamb_1 = [](int){}; //getMax
 
@@ -551,4 +563,4 @@ __global__ void transitive_closure(const int *R, const int *C, const int n, int 
         };
 
         multi_search(R,C,n,d,Q,Q2,p,start,end,null_lamb_1,null_lamb_2,visit_vertex_lamb,null_lamb_1,null_lamb_3,null_lamb_1,null_lamb_5);
-}
+}*/
